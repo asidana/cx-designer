@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentic-cx-config
+  namespace: agentic-cx
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  API_PORT: "8000"
+  LOG_LEVEL: "info"
+  CORS_ORIGINS: "https://cx-designer.yourdomain.com"

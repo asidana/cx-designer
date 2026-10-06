@@ -1,0 +1,267 @@
+/**
+ * Flow Engine — DAG execution with voice-aware continuous loop.
+ * 
+ * Inspired by Flowise's pattern but extended for real-time voice:
+ * - Continuous audio stream processing
+ * - Barge-in handling
+ * - Stateful session management
+ */
+
+import { FlowGraph, FlowNode, ExecutionContext, NodeResult, AudioChunk } from '../types/node';
+import { nodeRegistry } from '../nodes/registry';
+
+export class FlowEngine {
+  private graph: FlowGraph;
+  private sessionVariables: Record<string, unknown> = {};
+  private audioPipeline: AudioPipeline | null = null;
+  private isRunning = false;
+  private inFlight: AbortController | null = null;
+  private heardTranscript: string[] = [];
+
+  constructor(graph: FlowGraph) {
+    this.graph = graph;
+  }
+
+  /**
+   * Execute the flow for a single turn (text input)
+   */
+  async execute(input: string, sessionId: string): Promise<NodeResult> {
+    const context = this.createContext(sessionId);
+    context.variables.set('input', input);
+
+    // Find entry nodes (no incoming edges)
+    const entryNodes = this.getEntryNodes();
+    if (entryNodes.length === 0) {
+      throw new Error('No entry nodes found in flow');
+    }
+
+    // Execute starting from first entry node
+    return this.executeNode(entryNodes[0].id, context);
+  }
+
+  /**
+   * Start a continuous voice session
+   */
+  async startVoiceSession(
+    sessionId: string,
+    audioStream: AsyncIterable<AudioChunk>
+  ): Promise<void> {
+    this.isRunning = true;
+    const context = this.createContext(sessionId);
+    context.audioStream = audioStream;
+
+    // Initialize audio pipeline (streaming, frame-based; STT emits partial + final)
+    this.audioPipeline = new AudioPipeline({
+      onTranscript: (text: string, isFinal: boolean) => {
+        if (!isFinal) return;
+        // Cancel in-flight LLM/tool work on barge-in, then start new turn
+        this.inFlight?.abort();
+        this.inFlight = new AbortController();
+        this.heardTranscript.push(text);
+        void this.handleTranscript(text, context, this.inFlight.signal);
+      },
+      onBargeIn: () => {
+        // Stop TTS AND cancel in-flight LLM/tool calls; truncate to what caller heard
+        this.inFlight?.abort();
+        this.inFlight = new AbortController();
+        context.voiceState.isSpeaking = false;
+        context.variables.set('bargeIn', true);
+        this.truncateToHeard(context);
+      }
+    });
+
+    // Process audio stream
+    for await (const chunk of audioStream) {
+      if (!this.isRunning) break;
+      await this.audioPipeline.processChunk(chunk);
+    }
+  }
+
+  /**
+   * Stop the voice session
+   */
+  stopVoiceSession(): void {
+    this.isRunning = false;
+    this.audioPipeline?.stop();
+  }
+
+  /**
+   * Handle a final transcript from STT (non-blocking: never awaited by audio loop)
+   */
+  private async handleTranscript(text: string, context: ExecutionContext, signal: AbortSignal): Promise<void> {
+    if (signal.aborted) return;
+    context.variables.set('input', text);
+    context.variables.set('timestamp', Date.now());
+
+    // Find entry nodes
+    const entryNodes = this.getEntryNodes();
+    if (entryNodes.length === 0) return;
+
+    // Execute flow
+    const result = await this.executeNode(entryNodes[0].id, context);
+
+    // Handle audio output
+    if (result.audioOutput && result.shouldSpeak) {
+      // In real implementation, this would stream to TTS
+      console.log('[FlowEngine] Audio output:', result.outputs);
+    }
+  }
+
+  /**
+   * Execute a single node and follow its edges
+   */
+  private async executeNode(nodeId: string, context: ExecutionContext): Promise<NodeResult> {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    if (!node) {
+      throw new Error(`Node not found: ${nodeId}`);
+    }
+
+    const nodeDef = nodeRegistry.get(node.type);
+    if (!nodeDef) {
+      throw new Error(`Unknown node type: ${node.type}`);
+    }
+
+    // Execute the node
+    const startTime = Date.now();
+    context.auditLog.push({
+      id: `audit_${Date.now()}`,
+      timestamp: startTime,
+      nodeId,
+      eventType: 'start',
+      data: { input: context.variables.get('input') },
+      latencyMs: 0
+    });
+
+    try {
+      const result = await nodeDef.execute(context);
+      const latency = Date.now() - startTime;
+
+      // Update context with results
+      Object.entries(result.variableUpdates).forEach(([key, value]) => {
+        context.variables.set(key, value);
+      });
+      context.costAccumulator += (result.outputs.cost as number) || 0;
+
+      // Log completion
+      context.auditLog.push({
+        id: `audit_${Date.now()}`,
+        timestamp: Date.now(),
+        nodeId,
+        eventType: 'complete',
+        data: { output: result.outputs, cost: result.outputs.cost },
+        latencyMs: latency
+      });
+
+      // Follow edges to next nodes
+      if (result.nextNodes.length > 0) {
+        const nextResults = await Promise.all(
+          result.nextNodes.map(nextId => this.executeNode(nextId, context))
+        );
+        // Return the last result (or merge if parallel)
+        return nextResults[nextResults.length - 1] || result;
+      }
+
+      return result;
+    } catch (error) {
+      const latency = Date.now() - startTime;
+      context.auditLog.push({
+        id: `audit_${Date.now()}`,
+        timestamp: Date.now(),
+        nodeId,
+        eventType: 'error',
+        data: { error: String(error) },
+        latencyMs: latency
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get entry nodes (no incoming edges)
+   */
+  private getEntryNodes(): FlowNode[] {
+    const targetIds = new Set(this.graph.edges.map(e => e.target));
+    return this.graph.nodes.filter(n => !targetIds.has(n.id));
+  }
+
+  /**
+   * Create execution context.
+   * In-memory variables stay a Map for ergonomics, but the persisted
+   * session is always the plain-record snapshot from snapshotSession().
+   */
+  private createContext(sessionId: string): ExecutionContext {
+    return {
+      sessionId,
+      userId: 'anonymous',
+      channel: 'voice',
+      variables: new Map(Object.entries(this.sessionVariables)),
+      voiceState: {
+        isListening: true,
+        isSpeaking: false,
+        bargeInEnabled: true
+      },
+      guardrails: [],
+      auditLog: [],
+      costAccumulator: 0,
+      toolRegistry: { tools: [], getTool: () => undefined },
+      mcpClients: new Map()
+    };
+  }
+
+  /** Serializable snapshot for checkpointing / resume / multi-server. */
+  snapshotSession(context: ExecutionContext): Record<string, unknown> {
+    const snapshot: Record<string, unknown> = {};
+    context.variables.forEach((value, key) => {
+      snapshot[key] = value as unknown;
+    });
+    this.sessionVariables = snapshot;
+    return { ...snapshot };
+  }
+
+  /** Restore from a plain-record snapshot (never Map, never AudioContext). */
+  restoreSession(snapshot: Record<string, unknown>): void {
+    this.sessionVariables = { ...snapshot };
+  }
+
+  /**
+   * Truncate conversation history to what the caller actually heard.
+   * Prevents the agent referencing speech that was interrupted mid-sentence.
+   */
+  private truncateToHeard(context: ExecutionContext): void {
+    const history = context.variables.get('conversationHistory') as Array<{ role: string; content: string }> | undefined;
+    if (!history || history.length === 0) return;
+    const heardCount = this.heardTranscript.length;
+    context.variables.set('conversationHistory', history.slice(0, Math.max(1, heardCount)));
+    context.variables.set('interrupted', true);
+  }
+}
+
+/**
+ * Audio Pipeline — handles STT, VAD, and TTS
+ */
+class AudioPipeline {
+  private config: {
+    onTranscript: (text: string, isFinal: boolean) => void;
+    onBargeIn: () => void;
+  };
+  private isSpeaking = false;
+
+  constructor(config: {
+    onTranscript: (text: string, isFinal: boolean) => void;
+    onBargeIn: () => void;
+  }) {
+    this.config = config;
+  }
+
+  async processChunk(chunk: AudioChunk): Promise<void> {
+    // In real implementation:
+    // 1. Run VAD on chunk
+    // 2. If speech detected, run STT
+    // 3. If user speaking while TTS active, trigger barge-in
+    // 4. Call onTranscript with result
+  }
+
+  stop(): void {
+    // Cleanup
+  }
+}
