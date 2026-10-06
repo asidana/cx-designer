@@ -35,6 +35,8 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { HelpPanel } from './components/HelpPanel';
 import { Onboarding } from './components/Onboarding';
 import { VersionControlPanel } from './components/VersionControlPanel';
+import { ScriptView } from './components/ScriptView';
+import type { VersionDiff } from './versioning/VersionControl';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { CollaborationPanel } from './components/CollaborationPanel';
 import { Notifications, useNotifications } from './components/Notifications';
@@ -63,6 +65,8 @@ const App: React.FC = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showVersionControl, setShowVersionControl] = useState(false);
+  const [showScriptView, setShowScriptView] = useState(false);
+  const [visualDiff, setVisualDiff] = useState<VersionDiff | null>(null);
   const [showMonitoring, setShowMonitoring] = useState(false);
   const [showCollaboration, setShowCollaboration] = useState(false);
   const [flowVersion, setFlowVersion] = useState('1.0.0');
@@ -229,22 +233,42 @@ const App: React.FC = () => {
     [nodes]
   );
 
-  // Canvas nodes with live-trace highlight on the active node
-  const displayNodes = useMemo(
-    () =>
-      nodes.map(n =>
-        n.id === activeNodeId
-          ? {
-              ...n,
-              style: {
-                ...(n.style || {}),
-                boxShadow: '0 0 0 2px #8b5cf6, 0 0 18px #8b5cf6'
-              }
-            }
-          : n
-      ),
-    [nodes, activeNodeId]
-  );
+  // Canvas nodes with live-trace highlight + version-diff tints.
+  // Diff wins over trace pulse when a comparison is active.
+  const displayNodes = useMemo(() => {
+    const added = new Set(visualDiff?.added || []);
+    const modified = new Set((visualDiff?.modified || []).map(m => m.nodeId));
+    return nodes.map(n => {
+      if (n.id === activeNodeId && !visualDiff) {
+        return {
+          ...n,
+          style: {
+            ...(n.style || {}),
+            boxShadow: '0 0 0 2px #8b5cf6, 0 0 18px #8b5cf6'
+          }
+        };
+      }
+      if (added.has(n.id)) {
+        return {
+          ...n,
+          style: {
+            ...(n.style || {}),
+            boxShadow: '0 0 0 2px #10b981, 0 0 14px #10b981'
+          }
+        };
+      }
+      if (modified.has(n.id)) {
+        return {
+          ...n,
+          style: {
+            ...(n.style || {}),
+            boxShadow: '0 0 0 2px #f59e0b, 0 0 14px #f59e0b'
+          }
+        };
+      }
+      return n;
+    });
+  }, [nodes, activeNodeId, visualDiff]);
 
   // Preflight issue count for the toolbar badge
   const preflightCount = useMemo(
@@ -342,6 +366,7 @@ const App: React.FC = () => {
     setFlowName(flow.name);
     setFlowVersion(flow.version);
     setSelectedNode(null);
+    setVisualDiff(null);
     success('Flow imported', flow.name);
   }, [setNodes, setEdges, success]);
 
@@ -540,6 +565,14 @@ const App: React.FC = () => {
           >
             📚
           </button>
+
+          <button
+            onClick={() => setShowScriptView(!showScriptView)}
+            title="Script view (linear conversation outline)"
+            style={{ ...toolbarButtonStyle, background: showScriptView ? '#f59e0b' : '#6366f1' }}
+          >
+            📜
+          </button>
           
           <button
             onClick={() => setShowAIGenerator(true)}
@@ -683,8 +716,64 @@ const App: React.FC = () => {
               importFlow(flow);
               setShowVersionControl(false);
             }}
+            onVisualDiff={setVisualDiff}
             onClose={() => setShowVersionControl(false)}
           />
+        )}
+
+        {showScriptView && (
+          <ScriptView
+            nodes={nodes}
+            edges={edges}
+            onSelectNode={handleTraceSelectNode}
+            onClose={() => setShowScriptView(false)}
+          />
+        )}
+
+        {visualDiff && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 60,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              background: 'rgba(15, 15, 26, 0.95)',
+              border: '1px solid #333',
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontSize: 12
+            }}
+          >
+            <span>
+              <span style={{ color: '#10b981' }}>■ added ({visualDiff.added.length})</span>
+              {' · '}
+              <span style={{ color: '#f59e0b' }}>
+                ■ modified ({visualDiff.modified.length})
+              </span>
+              {' · '}
+              <span style={{ color: '#ef4444' }}>
+                ■ removed ({visualDiff.removed.join(', ') || 'none on canvas'})
+              </span>
+            </span>
+            <button
+              onClick={() => setVisualDiff(null)}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 4,
+                border: '1px solid #333',
+                background: 'transparent',
+                color: '#aaa',
+                cursor: 'pointer',
+                fontSize: 12
+              }}
+            >
+              Exit diff
+            </button>
+          </div>
         )}
 
         {showMonitoring && (

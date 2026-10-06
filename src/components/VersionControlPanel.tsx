@@ -10,6 +10,7 @@ interface VersionControlPanelProps {
   flowId: string;
   currentFlow: FlowGraph;
   onRestore: (flow: FlowGraph) => void;
+  onVisualDiff: (diff: VersionDiff | null) => void;
   onClose: () => void;
 }
 
@@ -17,6 +18,7 @@ export const VersionControlPanel: React.FC<VersionControlPanelProps> = ({
   flowId,
   currentFlow,
   onRestore,
+  onVisualDiff,
   onClose
 }) => {
   const [versions, setVersions] = useState<FlowVersion[]>([]);
@@ -52,6 +54,7 @@ export const VersionControlPanel: React.FC<VersionControlPanelProps> = ({
 
     const result = versionControl.compareVersions(flowId, selectedVersion, compareVersion);
     setDiff(result);
+    onVisualDiff(result);
   };
 
   return (

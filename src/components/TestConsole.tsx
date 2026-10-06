@@ -19,6 +19,7 @@ import {
   deleteTestCase,
   SavedTestCase
 } from '../evals/TestCaseStore';
+import { WaterfallPanel, WaterfallSegment, LATENCY_BUDGET_MS } from './WaterfallPanel';
 
 interface TestConsoleProps {
   nodes: Node[];
@@ -66,6 +67,8 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
   );
   const [stateError, setStateError] = useState<string | null>(null);
   const [savedCases, setSavedCases] = useState<SavedTestCase[]>(() => listTestCases());
+  const [activeTab, setActiveTab] = useState<'trace' | 'waterfall' | 'cases'>('trace');
+  const [runSegments, setRunSegments] = useState<WaterfallSegment[]>([]);
   const [lastRun, setLastRun] = useState<{
     input: string;
     startNodeId: string | null;
@@ -100,6 +103,21 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
           latencyMs: stats.latencyMs
         }
       ]);
+      if (event === 'complete' || event === 'error') {
+        const label = String(
+          nodes.find(n => n.id === nodeId)?.data?.label || nodeId
+        );
+        setRunSegments(prev => [
+          ...prev,
+          {
+            nodeId,
+            label,
+            latencyMs: stats.latencyMs,
+            cost: stats.cost || 0,
+            errored: event === 'error'
+          }
+        ]);
+      }
       onTraceEvent(nodeId, event, stats);
     });
     engineRef.current = engine;
@@ -192,6 +210,7 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
 
     addLog(`User: "${text}"`);
     setTranscript(text);
+    setRunSegments([]);
     onClearTrace();
 
     try {
@@ -309,7 +328,7 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
             📌 Save case
           </button>
           <button
-            onClick={() => { setTraceEvents([]); setLogs([]); setLastRun(null); onClearTrace(); setMetrics({ totalLatencyMs: 0, tokenCount: 0, cost: 0, guardrailViolations: 0 }); }}
+            onClick={() => { setTraceEvents([]); setLogs([]); setLastRun(null); setRunSegments([]); onClearTrace(); setMetrics({ totalLatencyMs: 0, tokenCount: 0, cost: 0, guardrailViolations: 0 }); }}
             style={{
               padding: '6px 12px',
               borderRadius: 4,
@@ -327,89 +346,124 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
 
       {/* Content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Trace View */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-          <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
-            TRACE VIEW — click a row to jump to the node
+        {/* Trace / Waterfall / Cases tabs */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: 8, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            {(
+              [
+                ['trace', 'Trace'],
+                ['waterfall', 'Waterfall'],
+                ['cases', `Cases (${savedCases.length})`]
+              ] as Array<[typeof activeTab, string]>
+            ).map(([tab, label]) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  border: 'none',
+                  background: activeTab === tab ? '#8b5cf6' : '#1a1a2e',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: 11
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          {traceEvents.length === 0 && logs.length === 0 ? (
-            <div style={{ fontSize: 12, color: '#555', textAlign: 'center', marginTop: 40 }}>
-              Click "Record" or type a message to start testing
+
+          {activeTab === 'waterfall' ? (
+            <WaterfallPanel segments={runSegments} budgetMs={LATENCY_BUDGET_MS} />
+          ) : activeTab === 'cases' ? (
+            <div>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+                PINNED EVAL CASES — click to reload into test fields
+              </div>
+              {savedCases.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#555', textAlign: 'center', marginTop: 24 }}>
+                  No saved cases yet. Run a test, then hit "📌 Save case".
+                </div>
+              ) : (
+                savedCases.map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: 11,
+                      color: '#aaa',
+                      marginBottom: 4,
+                      padding: 6,
+                      background: '#1a1a2e',
+                      borderRadius: 4
+                    }}
+                  >
+                    <span
+                      onClick={() => handleLoadCase(c)}
+                      style={{ cursor: 'pointer', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={c.input}
+                    >
+                      📌 {c.name}
+                    </span>
+                    <button
+                      onClick={() => {
+                        deleteTestCase(c.id);
+                        setSavedCases(listTestCases());
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#666',
+                        cursor: 'pointer',
+                        fontSize: 12
+                      }}
+                      title="Delete case"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           ) : (
-            <div style={{ fontFamily: 'monospace', fontSize: 11 }}>
-              {traceEvents.map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => onSelectNode(t.nodeId)}
-                  title="Jump to node on canvas"
-                  style={{
-                    color: t.eventType === 'error' ? '#ef4444' : '#7dd3fc',
-                    marginBottom: 2,
-                    cursor: 'pointer'
-                  }}
-                >
-                  [{t.eventType}] {t.nodeId} ({t.latencyMs}ms)
-                </div>
-              ))}
-              {logs.map((log, i) => (
-                <div key={`log_${i}`} style={{
-                  color: log.includes('Error') ? '#ef4444' : log.includes('Agent') ? '#10b981' : '#aaa',
-                  marginBottom: 2
-                }}>
-                  {log}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Saved eval cases */}
-          {savedCases.length > 0 && (
-            <div style={{ marginTop: 12, borderTop: '1px solid #333', paddingTop: 8 }}>
+            <>
               <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
-                SAVED CASES ({savedCases.length}) — click to reload into test fields
+                TRACE VIEW — click a row to jump to the node
               </div>
-              {savedCases.map((c) => (
-                <div
-                  key={c.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: 11,
-                    color: '#aaa',
-                    marginBottom: 4,
-                    padding: 4,
-                    background: '#1a1a2e',
-                    borderRadius: 4
-                  }}
-                >
-                  <span
-                    onClick={() => handleLoadCase(c)}
-                    style={{ cursor: 'pointer', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                    title={c.input}
-                  >
-                    📌 {c.name}
-                  </span>
-                  <button
-                    onClick={() => {
-                      deleteTestCase(c.id);
-                      setSavedCases(listTestCases());
-                    }}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#666',
-                      cursor: 'pointer',
-                      fontSize: 12
-                    }}
-                    title="Delete case"
-                  >
-                    ×
-                  </button>
+              {traceEvents.length === 0 && logs.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#555', textAlign: 'center', marginTop: 40 }}>
+                  Click "Record" or type a message to start testing
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                  {traceEvents.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => onSelectNode(t.nodeId)}
+                      title="Jump to node on canvas"
+                      style={{
+                        color: t.eventType === 'error' ? '#ef4444' : '#7dd3fc',
+                        marginBottom: 2,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      [{t.eventType}] {t.nodeId} ({t.latencyMs}ms)
+                    </div>
+                  ))}
+                  {logs.map((log, i) => (
+                    <div key={`log_${i}`} style={{
+                      color: log.includes('Error') ? '#ef4444' : log.includes('Agent') ? '#10b981' : '#aaa',
+                      marginBottom: 2
+                    }}>
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 
