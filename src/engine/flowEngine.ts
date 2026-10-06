@@ -10,6 +10,13 @@
 import { FlowGraph, FlowNode, ExecutionContext, NodeResult, AudioChunk } from '../types/node';
 import { nodeRegistry } from '../nodes/registry';
 
+export type TraceEventType = 'start' | 'complete' | 'error';
+export type TraceCallback = (
+  nodeId: string,
+  event: TraceEventType,
+  data: { latencyMs: number; cost?: number; error?: string }
+) => void;
+
 export class FlowEngine {
   private graph: FlowGraph;
   private sessionVariables: Record<string, unknown> = {};
@@ -17,18 +24,21 @@ export class FlowEngine {
   private isRunning = false;
   private inFlight: AbortController | null = null;
   private heardTranscript: string[] = [];
+  private traceCallback: TraceCallback | null = null;
 
   constructor(graph: FlowGraph) {
     this.graph = graph;
+  }
+
+  /** Subscribe to per-node execution events (drives canvas trace animation). */
+  setTraceCallback(cb: TraceCallback | null): void {
+    this.traceCallback = cb;
   }
 
   /**
    * Execute the flow for a single turn (text input)
    */
   async execute(input: string, sessionId: string): Promise<NodeResult> {
-    const context = this.createContext(sessionId);
-    context.variables.set('input', input);
-
     // Find entry nodes (no incoming edges)
     const entryNodes = this.getEntryNodes();
     if (entryNodes.length === 0) {
@@ -36,7 +46,31 @@ export class FlowEngine {
     }
 
     // Execute starting from first entry node
-    return this.executeNode(entryNodes[0].id, context);
+    return this.executeFrom(entryNodes[0].id, input, sessionId);
+  }
+
+  /**
+   * Execute starting from a specific node ("start from here").
+   * initialState is injected into session variables first, so testers can
+   * skip preamble (e.g. { identity_verified: true, balance: 40 }).
+   */
+  async executeFrom(
+    nodeId: string,
+    input: string,
+    sessionId: string,
+    initialState: Record<string, unknown> = {}
+  ): Promise<NodeResult> {
+    const context = this.createContext(sessionId);
+    context.variables.set('input', input);
+    for (const [key, value] of Object.entries(initialState)) {
+      context.variables.set(key, value);
+    }
+
+    if (!this.graph.nodes.find(n => n.id === nodeId)) {
+      throw new Error(`Node not found: ${nodeId}`);
+    }
+
+    return this.executeNode(nodeId, context);
   }
 
   /**
@@ -123,6 +157,7 @@ export class FlowEngine {
 
     // Execute the node
     const startTime = Date.now();
+    this.traceCallback?.(nodeId, 'start', { latencyMs: 0 });
     context.auditLog.push({
       id: `audit_${Date.now()}`,
       timestamp: startTime,
@@ -141,6 +176,10 @@ export class FlowEngine {
         context.variables.set(key, value);
       });
       context.costAccumulator += (result.outputs.cost as number) || 0;
+      this.traceCallback?.(nodeId, 'complete', {
+        latencyMs: latency,
+        cost: (result.outputs.cost as number) || 0
+      });
 
       // Log completion
       context.auditLog.push({
@@ -164,6 +203,7 @@ export class FlowEngine {
       return result;
     } catch (error) {
       const latency = Date.now() - startTime;
+      this.traceCallback?.(nodeId, 'error', { latencyMs: latency, error: String(error) });
       context.auditLog.push({
         id: `audit_${Date.now()}`,
         timestamp: Date.now(),

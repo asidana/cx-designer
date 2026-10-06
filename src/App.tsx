@@ -5,7 +5,7 @@
  * Built with React Flow + Zustand.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -30,6 +30,7 @@ import { AIGenerator } from './components/AIGenerator';
 import { PluginMarketplace } from './components/PluginMarketplace';
 import { TemplateGallery } from './components/TemplateGallery';
 import { ValidationPanel } from './components/ValidationPanel';
+import { PreflightPanel, lintFlow } from './components/PreflightPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HelpPanel } from './components/HelpPanel';
 import { Onboarding } from './components/Onboarding';
@@ -57,6 +58,7 @@ const App: React.FC = () => {
   const [showPlugins, setShowPlugins] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [showPreflight, setShowPreflight] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -64,7 +66,6 @@ const App: React.FC = () => {
   const [showMonitoring, setShowMonitoring] = useState(false);
   const [showCollaboration, setShowCollaboration] = useState(false);
   const [flowVersion, setFlowVersion] = useState('1.0.0');
-  const [analyticsMetrics] = useState(new Map());
   const [settings, setSettings] = useState({
     theme: 'dark',
     autoSave: true,
@@ -179,6 +180,79 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Live trace state: active node pulse + per-node stats for analytics
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [nodeStats, setNodeStats] = useState(
+    new Map<string, { avgLatencyMs: number; avgCost: number; errorRate: number; executionCount: number }>()
+  );
+
+  const handleTraceEvent = useCallback(
+    (
+      nodeId: string,
+      event: 'start' | 'complete' | 'error',
+      stats: { latencyMs: number; cost?: number }
+    ) => {
+      setActiveNodeId(nodeId);
+      if (event === 'complete' || event === 'error') {
+        setNodeStats(prev => {
+          const next = new Map(prev);
+          const cur = next.get(nodeId) || {
+            avgLatencyMs: 0,
+            avgCost: 0,
+            errorRate: 0,
+            executionCount: 0
+          };
+          const runs = cur.executionCount + 1;
+          next.set(nodeId, {
+            avgLatencyMs: (cur.avgLatencyMs * cur.executionCount + stats.latencyMs) / runs,
+            avgCost: (cur.avgCost * cur.executionCount + (stats.cost || 0)) / runs,
+            errorRate:
+              (cur.errorRate * cur.executionCount + (event === 'error' ? 1 : 0)) / runs,
+            executionCount: runs
+          });
+          return next;
+        });
+      }
+    },
+    []
+  );
+
+  const handleClearTrace = useCallback(() => {
+    setActiveNodeId(null);
+  }, []);
+
+  const handleTraceSelectNode = useCallback(
+    (nodeId: string) => {
+      const node = nodes.find(n => n.id === nodeId);
+      if (node) setSelectedNode(node);
+    },
+    [nodes]
+  );
+
+  // Canvas nodes with live-trace highlight on the active node
+  const displayNodes = useMemo(
+    () =>
+      nodes.map(n =>
+        n.id === activeNodeId
+          ? {
+              ...n,
+              style: {
+                ...(n.style || {}),
+                boxShadow: '0 0 0 2px #8b5cf6, 0 0 18px #8b5cf6'
+              }
+            }
+          : n
+      ),
+    [nodes, activeNodeId]
+  );
+
+  // Preflight issue count for the toolbar badge
+  const preflightCount = useMemo(
+    () => lintFlow(nodes, edges).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodes, edges, flowName, flowVersion]
+  );
+
   // Handle node connection
   const onConnect = useCallback(
     (params: Connection) => {
@@ -188,15 +262,32 @@ const App: React.FC = () => {
   );
 
   // Add a new node to the canvas
+  // Border style encodes node kind (not color alone): dashed = AI,
+  // dotted = governance, double = voice, solid = deterministic/control.
   const addNode = useCallback(
     (type: NodeType) => {
       const nodeDef = nodeRegistry.get(type);
       if (!nodeDef) return;
 
+      const borderByCategory: Record<string, { borderStyle: string; borderWidth: number }> = {
+        voice: { borderStyle: 'double', borderWidth: 4 },
+        agentic: { borderStyle: 'dashed', borderWidth: 2 },
+        governance: { borderStyle: 'dotted', borderWidth: 2 },
+        deterministic: { borderStyle: 'solid', borderWidth: 2 },
+        control: { borderStyle: 'solid', borderWidth: 2 },
+        integration: { borderStyle: 'solid', borderWidth: 2 },
+        gateway: { borderStyle: 'solid', borderWidth: 2 }
+      };
+      const border = borderByCategory[nodeDef.category] || {
+        borderStyle: 'solid',
+        borderWidth: 2
+      };
+
       const newNode: Node = {
         id: `${type}_${Date.now()}`,
         type: 'default',
         position: { x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 },
+        style: { borderColor: nodeDef.color, ...border },
         data: {
           label: nodeDef.label,
           config: {},
@@ -426,6 +517,21 @@ const App: React.FC = () => {
           >
             ✅
           </button>
+
+          <button
+            onClick={() => setShowPreflight(!showPreflight)}
+            title={`Preflight lint (${preflightCount} issue${preflightCount === 1 ? '' : 's'})`}
+            style={{
+              ...toolbarButtonStyle,
+              background: showPreflight
+                ? '#f59e0b'
+                : preflightCount > 0
+                  ? '#b45309'
+                  : '#6366f1'
+            }}
+          >
+            ✈️{preflightCount > 0 ? ` ${preflightCount}` : ''}
+          </button>
           
           <button
             onClick={() => setShowTemplates(true)}
@@ -479,7 +585,7 @@ const App: React.FC = () => {
         </div>
 
         <ReactFlow
-          nodes={nodes}
+          nodes={displayNodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -525,7 +631,7 @@ const App: React.FC = () => {
 
         {/* Overlays */}
         {showAnalytics && (
-          <AnalyticsOverlay nodes={nodes} edges={edges} metrics={analyticsMetrics} />
+          <AnalyticsOverlay nodes={nodes} edges={edges} metrics={nodeStats} />
         )}
 
         {showAIGenerator && (
@@ -603,8 +709,26 @@ const App: React.FC = () => {
           />
         )}
 
+        {showPreflight && (
+          <PreflightPanel
+            nodes={nodes}
+            edges={edges}
+            flowName={flowName}
+            flowVersion={flowVersion}
+            onSelectNode={handleTraceSelectNode}
+            onClose={() => setShowPreflight(false)}
+          />
+        )}
+
         {showTestConsole && (
-          <TestConsole nodes={nodes} edges={edges} flowName={flowName} />
+          <TestConsole
+            nodes={nodes}
+            edges={edges}
+            flowName={flowName}
+            onTraceEvent={handleTraceEvent}
+            onSelectNode={handleTraceSelectNode}
+            onClearTrace={handleClearTrace}
+          />
         )}
       </div>
 

@@ -11,13 +11,22 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Node, Edge } from 'reactflow';
-import { FlowEngine } from '../engine/flowEngine';
+import { FlowEngine, TraceEventType } from '../engine/flowEngine';
 import { FlowGraph, FlowNode, FlowEdge, AuditEvent } from '../types/node';
+import {
+  listTestCases,
+  saveTestCase,
+  deleteTestCase,
+  SavedTestCase
+} from '../evals/TestCaseStore';
 
 interface TestConsoleProps {
   nodes: Node[];
   edges: Edge[];
   flowName: string;
+  onTraceEvent: (nodeId: string, event: TraceEventType, stats: { latencyMs: number; cost?: number }) => void;
+  onSelectNode: (nodeId: string) => void;
+  onClearTrace: () => void;
 }
 
 interface TraceEvent {
@@ -36,7 +45,14 @@ interface Metrics {
   guardrailViolations: number;
 }
 
-export const TestConsole: React.FC<TestConsoleProps> = ({ nodes, edges, flowName }) => {
+export const TestConsole: React.FC<TestConsoleProps> = ({
+  nodes,
+  edges,
+  flowName,
+  onTraceEvent,
+  onSelectNode,
+  onClearTrace
+}) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -44,12 +60,25 @@ export const TestConsole: React.FC<TestConsoleProps> = ({ nodes, edges, flowName
   const [metrics, setMetrics] = useState<Metrics>({ totalLatencyMs: 0, tokenCount: 0, cost: 0, guardrailViolations: 0 });
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
+  const [startNodeId, setStartNodeId] = useState<string>('');
+  const [injectedState, setInjectedState] = useState<string>(
+    '{\n  "identity_verified": true,\n  "balance": 40\n}'
+  );
+  const [stateError, setStateError] = useState<string | null>(null);
+  const [savedCases, setSavedCases] = useState<SavedTestCase[]>(() => listTestCases());
+  const [lastRun, setLastRun] = useState<{
+    input: string;
+    startNodeId: string | null;
+    injectedState: Record<string, unknown>;
+    output: string;
+    cost: number;
+  } | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const engineRef = useRef<FlowEngine | null>(null);
 
-  // Initialize engine
+  // Initialize engine (rebuilds on canvas change; re-attaches trace forwarding)
   useEffect(() => {
     const graph: FlowGraph = {
       id: 'test_flow',
@@ -58,8 +87,23 @@ export const TestConsole: React.FC<TestConsoleProps> = ({ nodes, edges, flowName
       nodes: nodes as FlowNode[],
       edges: edges as FlowEdge[]
     };
-    engineRef.current = new FlowEngine(graph);
-  }, [nodes, edges, flowName]);
+    const engine = new FlowEngine(graph);
+    engine.setTraceCallback((nodeId, event, stats) => {
+      setTraceEvents(prev => [
+        ...prev,
+        {
+          id: `trace_${Date.now()}_${prev.length}`,
+          timestamp: Date.now(),
+          nodeId,
+          eventType: event,
+          data: {},
+          latencyMs: stats.latencyMs
+        }
+      ]);
+      onTraceEvent(nodeId, event, stats);
+    });
+    engineRef.current = engine;
+  }, [nodes, edges, flowName, onTraceEvent]);
 
   // Add log entry
   const addLog = useCallback((message: string) => {
@@ -123,25 +167,80 @@ export const TestConsole: React.FC<TestConsoleProps> = ({ nodes, edges, flowName
     }
   }, [isRecording, addLog]);
 
-  // Text input for testing
+  // Parse injected session state (empty = start clean)
+  const parseInjectedState = useCallback((): Record<string, unknown> | null => {
+    if (!injectedState.trim()) {
+      setStateError(null);
+      return {};
+    }
+    try {
+      const parsed = JSON.parse(injectedState) as Record<string, unknown>;
+      setStateError(null);
+      return parsed;
+    } catch {
+      setStateError('State is not valid JSON — running without injection.');
+      return null;
+    }
+  }, [injectedState]);
+
+  // Text input for testing (supports "start from here" + state injection)
   const handleTextSubmit = useCallback(async (text: string) => {
     if (!text.trim() || !engineRef.current) return;
-    
+
+    const state = parseInjectedState();
+    if (state === null) return;
+
     addLog(`User: "${text}"`);
     setTranscript(text);
-    
+    onClearTrace();
+
     try {
-      const result = await engineRef.current.execute(text, 'test_session');
-      addLog(`Agent: "${result.outputs.response || 'No response'}"`);
+      const result = startNodeId
+        ? await engineRef.current.executeFrom(startNodeId, text, 'test_session', state)
+        : await engineRef.current.execute(text, 'test_session');
+      const output = String(result.outputs.response || 'No response');
+      const cost = (result.outputs.cost as number) || 0;
+      addLog(`Agent: "${output}"`);
       setMetrics(prev => ({
         ...prev,
         totalLatencyMs: prev.totalLatencyMs + 800,
         tokenCount: prev.tokenCount + 120,
-        cost: prev.cost + (result.outputs.cost as number) || 0
+        cost: prev.cost + cost
       }));
+      setLastRun({
+        input: text,
+        startNodeId: startNodeId || null,
+        injectedState: state,
+        output,
+        cost
+      });
     } catch (error) {
       addLog(`Error: ${error}`);
     }
+  }, [addLog, parseInjectedState, startNodeId, onClearTrace]);
+
+  // Pin the last run as an eval case
+  const handleSaveCase = useCallback(() => {
+    if (!lastRun) return;
+    const saved = saveTestCase({
+      name: `${lastRun.input.slice(0, 40)}${lastRun.input.length > 40 ? '…' : ''}`,
+      input: lastRun.input,
+      startNodeId: lastRun.startNodeId,
+      injectedState: lastRun.injectedState,
+      actualOutput: lastRun.output,
+      expectedOutput: lastRun.output,
+      cost: lastRun.cost
+    });
+    setSavedCases(listTestCases());
+    addLog(`Saved as test case: "${saved.name}" (edit expected output later)`);
+  }, [lastRun, addLog]);
+
+  // Load a saved case back into the test fields
+  const handleLoadCase = useCallback((c: SavedTestCase) => {
+    setTranscript(c.input);
+    setStartNodeId(c.startNodeId || '');
+    setInjectedState(JSON.stringify(c.injectedState, null, 2));
+    addLog(`Loaded test case: "${c.name}"`);
   }, [addLog]);
 
   return (
@@ -194,7 +293,23 @@ export const TestConsole: React.FC<TestConsoleProps> = ({ nodes, edges, flowName
             {isRecording ? '⏹ Stop' : '🎤 Record'}
           </button>
           <button
-            onClick={() => { setTraceEvents([]); setLogs([]); setMetrics({ totalLatencyMs: 0, tokenCount: 0, cost: 0, guardrailViolations: 0 }); }}
+            onClick={handleSaveCase}
+            disabled={!lastRun}
+            title="Pin the last run as an eval case"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 4,
+              border: 'none',
+              background: lastRun ? '#8b5cf6' : '#333',
+              color: 'white',
+              cursor: lastRun ? 'pointer' : 'not-allowed',
+              fontSize: 12
+            }}
+          >
+            📌 Save case
+          </button>
+          <button
+            onClick={() => { setTraceEvents([]); setLogs([]); setLastRun(null); onClearTrace(); setMetrics({ totalLatencyMs: 0, tokenCount: 0, cost: 0, guardrailViolations: 0 }); }}
             style={{
               padding: '6px 12px',
               borderRadius: 4,
@@ -214,19 +329,84 @@ export const TestConsole: React.FC<TestConsoleProps> = ({ nodes, edges, flowName
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Trace View */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-          <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>TRACE VIEW</div>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+            TRACE VIEW — click a row to jump to the node
+          </div>
           {traceEvents.length === 0 && logs.length === 0 ? (
             <div style={{ fontSize: 12, color: '#555', textAlign: 'center', marginTop: 40 }}>
               Click "Record" or type a message to start testing
             </div>
           ) : (
             <div style={{ fontFamily: 'monospace', fontSize: 11 }}>
+              {traceEvents.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => onSelectNode(t.nodeId)}
+                  title="Jump to node on canvas"
+                  style={{
+                    color: t.eventType === 'error' ? '#ef4444' : '#7dd3fc',
+                    marginBottom: 2,
+                    cursor: 'pointer'
+                  }}
+                >
+                  [{t.eventType}] {t.nodeId} ({t.latencyMs}ms)
+                </div>
+              ))}
               {logs.map((log, i) => (
-                <div key={i} style={{ 
+                <div key={`log_${i}`} style={{
                   color: log.includes('Error') ? '#ef4444' : log.includes('Agent') ? '#10b981' : '#aaa',
                   marginBottom: 2
                 }}>
                   {log}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Saved eval cases */}
+          {savedCases.length > 0 && (
+            <div style={{ marginTop: 12, borderTop: '1px solid #333', paddingTop: 8 }}>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+                SAVED CASES ({savedCases.length}) — click to reload into test fields
+              </div>
+              {savedCases.map((c) => (
+                <div
+                  key={c.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: 11,
+                    color: '#aaa',
+                    marginBottom: 4,
+                    padding: 4,
+                    background: '#1a1a2e',
+                    borderRadius: 4
+                  }}
+                >
+                  <span
+                    onClick={() => handleLoadCase(c)}
+                    style={{ cursor: 'pointer', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={c.input}
+                  >
+                    📌 {c.name}
+                  </span>
+                  <button
+                    onClick={() => {
+                      deleteTestCase(c.id);
+                      setSavedCases(listTestCases());
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#666',
+                      cursor: 'pointer',
+                      fontSize: 12
+                    }}
+                    title="Delete case"
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
@@ -255,6 +435,51 @@ export const TestConsole: React.FC<TestConsoleProps> = ({ nodes, edges, flowName
           </div>
         </div>
       </div>
+
+      {/* Start-from-here + state injection */}
+      <div style={{ padding: '8px 8px 0', display: 'flex', gap: 8 }}>
+        <select
+          value={startNodeId}
+          onChange={(e) => setStartNodeId(e.target.value)}
+          title="Start execution from a specific node instead of the flow entry"
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            borderRadius: 4,
+            border: '1px solid #333',
+            background: '#1a1a2e',
+            color: 'white',
+            fontSize: 12
+          }}
+        >
+          <option value="">Start: flow entry</option>
+          {nodes.map((n) => (
+            <option key={n.id} value={n.id}>
+              Start from: {String(n.data?.label || n.id)}
+            </option>
+          ))}
+        </select>
+        <input
+          value={injectedState}
+          onChange={(e) => setInjectedState(e.target.value)}
+          title='Session state JSON injected at start (e.g. {"identity_verified": true})'
+          placeholder='{"identity_verified": true}'
+          spellCheck={false}
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            borderRadius: 4,
+            border: stateError ? '1px solid #ef4444' : '1px solid #333',
+            background: '#1a1a2e',
+            color: 'white',
+            fontSize: 12,
+            fontFamily: 'monospace'
+          }}
+        />
+      </div>
+      {stateError && (
+        <div style={{ padding: '4px 8px 0', fontSize: 11, color: '#ef4444' }}>{stateError}</div>
+      )}
 
       {/* Text Input */}
       <div style={{ padding: 8, borderTop: '1px solid #333' }}>
