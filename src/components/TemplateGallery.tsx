@@ -8,9 +8,10 @@ import { FlowGraph } from '../types/node';
 
 interface TemplateGalleryProps {
   onSelect: (flow: FlowGraph) => void;
+  onClose: () => void;
 }
 
-export const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onSelect }) => {
+export const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onSelect, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -125,9 +126,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onSelect }) =>
       </div>
 
       <button
-        onClick={() => {
-          // Close gallery
-        }}
+        onClick={onClose}
         style={{
           marginTop: 16,
           padding: 8,

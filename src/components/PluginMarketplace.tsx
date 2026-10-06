@@ -5,7 +5,11 @@
 import React, { useState } from 'react';
 import { pluginMarketplace, Plugin } from '../plugins/PluginMarketplace';
 
-export const PluginMarketplace: React.FC = () => {
+interface PluginMarketplaceProps {
+  onClose: () => void;
+}
+
+export const PluginMarketplace: React.FC<PluginMarketplaceProps> = ({ onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [plugins, setPlugins] = useState(pluginMarketplace.listPlugins());
@@ -151,9 +155,7 @@ export const PluginMarketplace: React.FC = () => {
       </div>
 
       <button
-        onClick={() => {
-          // Close marketplace
-        }}
+        onClick={onClose}
         style={{
           marginTop: 16,
           padding: 8,

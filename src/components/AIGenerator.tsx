@@ -10,9 +10,10 @@ import { FlowGraph } from '../types/node';
 
 interface AIGeneratorProps {
   onGenerate: (flow: FlowGraph) => void;
+  onClose: () => void;
 }
 
-export const AIGenerator: React.FC<AIGeneratorProps> = ({ onGenerate }) => {
+export const AIGenerator: React.FC<AIGeneratorProps> = ({ onGenerate, onClose }) => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [explanation, setExplanation] = useState('');
@@ -117,6 +118,8 @@ export const AIGenerator: React.FC<AIGeneratorProps> = ({ onGenerate }) => {
         onClick={() => {
           setExplanation('');
           setSuggestions([]);
+          setPrompt('');
+          onClose();
         }}
         style={{
           marginTop: 12,

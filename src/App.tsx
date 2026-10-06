@@ -5,7 +5,7 @@
  * Built with React Flow + Zustand.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -15,7 +15,8 @@ import ReactFlow, {
   useEdgesState,
   Connection,
   Node,
-  Edge
+  Edge,
+  ReactFlowInstance
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -36,6 +37,9 @@ import { VersionControlPanel } from './components/VersionControlPanel';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { CollaborationPanel } from './components/CollaborationPanel';
 import { Notifications, useNotifications } from './components/Notifications';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { historyManager } from './history/HistoryManager';
+import { autoSave } from './autosave/AutoSave';
 import { FlowValidator } from './validation/FlowValidator';
 import { FlowGraph, FlowNode, FlowEdge, NodeType, NodeConfig } from './types/node';
 
@@ -75,6 +79,106 @@ const App: React.FC = () => {
 
   const { notifications, dismissNotification, success, error } = useNotifications();
 
+  // Structural-change history (add/delete/import only — drags don't pollute undo)
+  const pendingHistoryLabel = useRef<string | null>(null);
+  useEffect(() => {
+    if (pendingHistoryLabel.current) {
+      const label = pendingHistoryLabel.current;
+      pendingHistoryLabel.current = null;
+      historyManager.record(
+        {
+          id: 'flow_1',
+          name: flowName,
+          version: flowVersion,
+          nodes: nodes as FlowNode[],
+          edges: edges as FlowEdge[]
+        },
+        label
+      );
+    }
+  }, [nodes, edges, flowName, flowVersion]);
+
+  const applyHistoryFlow = useCallback(
+    (flow: FlowGraph | null) => {
+      if (!flow) return;
+      setNodes(flow.nodes as Node[]);
+      setEdges(flow.edges as Edge[]);
+      setSelectedNode(null);
+    },
+    [setNodes, setEdges]
+  );
+
+  // Delete selected node + its edges
+  const deleteSelected = useCallback(() => {
+    if (!selectedNode) return;
+    pendingHistoryLabel.current = `Delete ${selectedNode.data?.label || 'node'}`;
+    const id = selectedNode.id;
+    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    setNodes((nds) => nds.filter((n) => n.id !== id));
+    setSelectedNode(null);
+  }, [selectedNode, setEdges, setNodes]);
+
+  // Duplicate selected node with offset
+  const duplicateSelected = useCallback(() => {
+    if (!selectedNode) return;
+    pendingHistoryLabel.current = 'Duplicate node';
+    const copy: Node = {
+      ...selectedNode,
+      id: `${selectedNode.data?.type || 'node'}_${Date.now()}`,
+      position: {
+        x: selectedNode.position.x + 40,
+        y: selectedNode.position.y + 40
+      },
+      selected: false
+    };
+    setNodes((nds) => nds.concat(copy));
+    setSelectedNode(copy);
+  }, [selectedNode, setNodes]);
+
+  // Manual save
+  const saveFlow = useCallback(() => {
+    autoSave.update({
+      id: 'flow_1',
+      name: flowName,
+      version: flowVersion,
+      nodes: nodes as FlowNode[],
+      edges: edges as FlowEdge[]
+    });
+    autoSave.save();
+    success('Flow saved', flowName);
+  }, [nodes, edges, flowName, flowVersion, success]);
+
+  // Select all nodes
+  const selectAll = useCallback(() => {
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: true })));
+  }, [setNodes]);
+
+  const flowInstance = useRef<ReactFlowInstance | null>(null);
+
+  useKeyboardShortcuts({
+    onUndo: () => applyHistoryFlow(historyManager.undo()),
+    onRedo: () => applyHistoryFlow(historyManager.redo()),
+    onSave: saveFlow,
+    onDuplicate: duplicateSelected,
+    onDelete: deleteSelected,
+    onSelectAll: selectAll,
+    onZoomIn: () => flowInstance.current?.zoomIn(),
+    onZoomOut: () => flowInstance.current?.zoomOut(),
+    onResetZoom: () => flowInstance.current?.fitView()
+  });
+
+  // Show onboarding on first run
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem('agentic_cx_onboarded')) {
+        setShowOnboarding(true);
+        localStorage.setItem('agentic_cx_onboarded', '1');
+      }
+    } catch {
+      // localStorage unavailable (private mode) — skip onboarding
+    }
+  }, []);
+
   // Handle node connection
   const onConnect = useCallback(
     (params: Connection) => {
@@ -101,6 +205,7 @@ const App: React.FC = () => {
       };
 
       setNodes((nds) => nds.concat(newNode));
+      pendingHistoryLabel.current = `Add ${nodeDef.label}`;
       success('Node added', `${nodeDef.label} added to canvas`);
     },
     [setNodes, success]
@@ -140,10 +245,12 @@ const App: React.FC = () => {
 
   // Import flow
   const importFlow = useCallback((flow: FlowGraph) => {
+    pendingHistoryLabel.current = `Import ${flow.name}`;
     setNodes(flow.nodes as Node[]);
     setEdges(flow.edges as Edge[]);
     setFlowName(flow.name);
     setFlowVersion(flow.version);
+    setSelectedNode(null);
     success('Flow imported', flow.name);
   }, [setNodes, setEdges, success]);
 
@@ -225,10 +332,10 @@ const App: React.FC = () => {
                       transition: 'background 0.2s'
                     }}
                     onMouseEnter={(e) => {
-                      (e.target as HTMLElement).style.background = '#1e3a5f';
+                      e.currentTarget.style.background = '#1e3a5f';
                     }}
                     onMouseLeave={(e) => {
-                      (e.target as HTMLElement).style.background = '#16213e';
+                      e.currentTarget.style.background = '#16213e';
                     }}
                   >
                     <span>{item.icon}</span>
@@ -274,6 +381,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowCollaboration(true)}
+            title="Collaboration"
             style={{ ...toolbarButtonStyle, background: '#6366f1' }}
           >
             👥
@@ -281,13 +389,15 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowMonitoring(true)}
+            title="Monitoring dashboard"
             style={{ ...toolbarButtonStyle, background: '#6366f1' }}
           >
-            📊
+            📈
           </button>
           
           <button
             onClick={() => setShowVersionControl(true)}
+            title="Version history"
             style={{ ...toolbarButtonStyle, background: '#6366f1' }}
           >
             📝
@@ -295,6 +405,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowHelp(true)}
+            title="Help & shortcuts"
             style={{ ...toolbarButtonStyle, background: '#6366f1' }}
           >
             ❓
@@ -302,6 +413,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowSettings(true)}
+            title="Settings"
             style={{ ...toolbarButtonStyle, background: '#6366f1' }}
           >
             ⚙️
@@ -309,6 +421,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowValidation(true)}
+            title="Validate flow"
             style={{ ...toolbarButtonStyle, background: '#10b981' }}
           >
             ✅
@@ -316,6 +429,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowTemplates(true)}
+            title="Template gallery"
             style={{ ...toolbarButtonStyle, background: '#6366f1' }}
           >
             📚
@@ -323,6 +437,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowAIGenerator(true)}
+            title="Generate flow with AI"
             style={{ ...toolbarButtonStyle, background: '#8b5cf6' }}
           >
             🤖
@@ -330,6 +445,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowPlugins(true)}
+            title="Plugin marketplace"
             style={{ ...toolbarButtonStyle, background: '#6366f1' }}
           >
             🧩
@@ -337,6 +453,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowAnalytics(!showAnalytics)}
+            title="Node analytics overlay"
             style={{ ...toolbarButtonStyle, background: showAnalytics ? '#f59e0b' : '#6366f1' }}
           >
             📊
@@ -346,6 +463,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setShowTestConsole(!showTestConsole)}
+            title="Real-time test console"
             style={{ ...toolbarButtonStyle, background: showTestConsole ? '#f59e0b' : '#6366f1' }}
           >
             🧪
@@ -353,6 +471,7 @@ const App: React.FC = () => {
           
           <button
             onClick={executeFlow}
+            title="Run flow"
             style={{ ...toolbarButtonStyle, background: '#10b981' }}
           >
             ▶
@@ -366,11 +485,35 @@ const App: React.FC = () => {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={(_, node) => setSelectedNode(node)}
+          onPaneClick={() => setSelectedNode(null)}
+          onInit={(instance) => {
+            flowInstance.current = instance;
+          }}
           fitView
           style={{ paddingTop: 60 }}
         >
           <Background color="#333" gap={16} />
           <Controls />
+          {nodes.length === 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '40%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                textAlign: 'center',
+                color: '#666',
+                pointerEvents: 'none',
+                zIndex: 5
+              }}
+            >
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🎙️</div>
+              <div style={{ fontSize: 15, marginBottom: 4 }}>
+                Start with a template (📚), generate with AI (🤖),
+              </div>
+              <div style={{ fontSize: 15 }}>or drag nodes from the palette →</div>
+            </div>
+          )}
           <MiniMap
             nodeColor={(n) => {
               const type = n.data?.type as NodeType;
@@ -391,10 +534,11 @@ const App: React.FC = () => {
               importFlow(flow);
               setShowAIGenerator(false);
             }}
+            onClose={() => setShowAIGenerator(false)}
           />
         )}
 
-        {showPlugins && <PluginMarketplace />}
+        {showPlugins && <PluginMarketplace onClose={() => setShowPlugins(false)} />}
 
         {showTemplates && (
           <TemplateGallery
@@ -402,6 +546,7 @@ const App: React.FC = () => {
               importFlow(flow);
               setShowTemplates(false);
             }}
+            onClose={() => setShowTemplates(false)}
           />
         )}
 

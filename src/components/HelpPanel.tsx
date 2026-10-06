@@ -71,7 +71,6 @@ export const HelpPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <ShortcutItem keys={['Ctrl', 'D']} description="Duplicate node" />
             <ShortcutItem keys={['Delete']} description="Delete selected" />
             <ShortcutItem keys={['Ctrl', 'A']} description="Select all" />
-            <ShortcutItem keys={['Space']} description="Pan canvas" />
             <ShortcutItem keys={['Ctrl', '+']} description="Zoom in" />
             <ShortcutItem keys={['Ctrl', '-']} description="Zoom out" />
             <ShortcutItem keys={['Ctrl', '0']} description="Reset zoom" />
