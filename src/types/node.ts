@@ -3,6 +3,8 @@
  * Every framework (LangGraph, Strands, ADK, LangChain) adapts to this.
  */
 
+import type { ChannelId } from '../channels/types';
+
 export type NodeType =
   // Voice Layer
   | 'voice.input'
@@ -108,7 +110,7 @@ export interface GuardrailConfig {
 }
 
 export interface DeploymentConfig {
-  channel: 'voice' | 'chat' | 'sms';
+  channel: ChannelId;
   telephony?: {
     provider: string;
     number?: string;
@@ -121,7 +123,7 @@ export interface DeploymentConfig {
 export interface ExecutionContext {
   sessionId: string;
   userId: string;
-  channel: 'voice' | 'chat' | 'sms';
+  channel: ChannelId;
   variables: Map<string, unknown>;
   audioStream?: AsyncIterable<AudioChunk>;
   voiceState: VoiceState;

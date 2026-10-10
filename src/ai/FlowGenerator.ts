@@ -10,10 +10,11 @@
  */
 
 import { FlowGraph, FlowNode, FlowEdge, NodeType } from '../types/node';
+import type { ChannelId } from '../channels/types';
 
 export interface FlowGenerationPrompt {
   description: string;
-  channel?: 'voice' | 'chat' | 'sms';
+  channel?: ChannelId;
   language?: string;
   industry?: string;
 }
