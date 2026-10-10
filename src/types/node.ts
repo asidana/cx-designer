@@ -11,6 +11,9 @@ export type NodeType =
   | 'voice.output'
   | 'voice.turn_detection'
   | 'voice.preprocessing'
+  // Chat Layer
+  | 'chat.input'
+  | 'chat.output'
   // Agentic Layer
   | 'agentic.intent_classifier'
   | 'agentic.reasoning_loop'
@@ -197,7 +200,7 @@ export interface ToolDefinition {
 
 export interface NodeDefinition {
   type: NodeType;
-  category: 'voice' | 'agentic' | 'deterministic' | 'control' | 'governance' | 'integration' | 'gateway';
+  category: 'voice' | 'chat' | 'agentic' | 'deterministic' | 'control' | 'governance' | 'integration' | 'gateway';
   label: string;
   description: string;
   icon: string;

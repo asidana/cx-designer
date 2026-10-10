@@ -111,7 +111,7 @@ lands tested, documented, and pushed before the next starts.
 ## Status
 
 - [x] T1. Channel model + router
-- [ ] T2. Chat + webchat runtime
+- [x] T2. Chat + webchat runtime
 - [ ] T3. AG-UI protocol
 - [ ] T4. A2UI protocol
 - [ ] T5. Multimodal copilot pane

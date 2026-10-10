@@ -295,6 +295,7 @@ const App: React.FC = () => {
 
       const borderByCategory: Record<string, { borderStyle: string; borderWidth: number }> = {
         voice: { borderStyle: 'double', borderWidth: 4 },
+        chat: { borderStyle: 'double', borderWidth: 4 },
         agentic: { borderStyle: 'dashed', borderWidth: 2 },
         governance: { borderStyle: 'dotted', borderWidth: 2 },
         deterministic: { borderStyle: 'solid', borderWidth: 2 },
@@ -423,7 +424,7 @@ const App: React.FC = () => {
       >
         <h2 style={{ marginTop: 0, fontSize: 18 }}>🎨 Node Palette</h2>
         
-        {['voice', 'agentic', 'deterministic', 'control', 'governance', 'integration'].map(
+        {['voice', 'chat', 'agentic', 'deterministic', 'control', 'governance', 'integration'].map(
           (category) => (
             <div key={category} style={{ marginBottom: 16 }}>
               <h3 style={{ fontSize: 12, textTransform: 'uppercase', color: '#888' }}>

@@ -191,10 +191,15 @@ export class FlowEngine {
         latencyMs: latency
       });
 
-      // Follow edges to next nodes
-      if (result.nextNodes.length > 0) {
+      // Follow edges to next nodes: explicit node routing wins,
+      // otherwise follow the canvas edges (per-turn DAG).
+      const nextIds =
+        result.nextNodes.length > 0
+          ? result.nextNodes
+          : this.graph.edges.filter(e => e.source === nodeId).map(e => e.target);
+      if (nextIds.length > 0) {
         const nextResults = await Promise.all(
-          result.nextNodes.map(nextId => this.executeNode(nextId, context))
+          nextIds.map(nextId => this.executeNode(nextId, context))
         );
         // Return the last result (or merge if parallel)
         return nextResults[nextResults.length - 1] || result;

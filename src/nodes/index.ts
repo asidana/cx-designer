@@ -8,6 +8,8 @@
 import { nodeRegistry } from './registry';
 import { voiceInputNode } from './voice/voiceInput';
 import { voiceOutputNode } from './voice/voiceOutput';
+import { chatInputNode } from './chat/chatInput';
+import { chatOutputNode } from './chat/chatOutput';
 import { intentClassifierNode } from './agentic/intentClassifier';
 import { reasoningLoopNode } from './agentic/reasoningLoop';
 import { ragNode } from './agentic/ragNode';
@@ -32,6 +34,10 @@ export function registerBuiltInNodes(): void {
   // Voice Layer
   nodeRegistry.register(voiceInputNode);
   nodeRegistry.register(voiceOutputNode);
+
+  // Chat Layer
+  nodeRegistry.register(chatInputNode);
+  nodeRegistry.register(chatOutputNode);
   
   // Agentic Layer
   nodeRegistry.register(intentClassifierNode);

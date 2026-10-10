@@ -20,6 +20,9 @@ import {
   SavedTestCase
 } from '../evals/TestCaseStore';
 import { WaterfallPanel, WaterfallSegment, LATENCY_BUDGET_MS } from './WaterfallPanel';
+import { ChannelRouter } from '../channels/router';
+import { runChatTurn } from '../channels/chatRuntime';
+import { ChannelMessage } from '../channels/types';
 import { seedMocks, Persona, Scenario } from '../mock/seed';
 import { idbGetAll } from '../mock/db';
 import { runSimulation } from '../mock/simulator';
@@ -77,6 +80,7 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
   const [personaId, setPersonaId] = useState<string>('');
   const [scenarioId, setScenarioId] = useState<string>('');
   const [simulating, setSimulating] = useState(false);
+  const [testChannel, setTestChannel] = useState<'voice' | 'chat'>('voice');
   const abortRef = useRef<AbortController | null>(null);
 
   // Seed mock personas/scenarios/tools into IndexedDB on first open
@@ -227,7 +231,8 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
     }
   }, [injectedState]);
 
-  // Text input for testing (supports "start from here" + state injection)
+  // Text input for testing (supports "start from here" + state injection).
+  // In chat mode the turn goes through the ChannelRouter as an envelope.
   const handleTextSubmit = useCallback(async (text: string) => {
     if (!text.trim() || !engineRef.current) return;
 
@@ -240,6 +245,35 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
     onClearTrace();
 
     try {
+      if (testChannel === 'chat') {
+        const router = new ChannelRouter();
+        const handler = async (msg: ChannelMessage) =>
+          runChatTurn(engineRef.current!, msg);
+        router.register('chat', handler);
+        router.register('webchat', handler);
+        const replies = await router.inbound({
+          id: `test_${Date.now()}`,
+          channel: 'webchat',
+          sessionId: 'test_session',
+          role: 'caller',
+          parts: [{ kind: 'text', text }],
+          at: Date.now()
+        });
+        const replyText = replies
+          .flatMap(r => r.parts)
+          .filter(p => p.kind === 'text' && p.text !== '…')
+          .map(p => (p as { text: string }).text)
+          .join(' ');
+        addLog(`Agent: "${replyText || 'No response'}"`);
+        setLastRun({
+          input: text,
+          startNodeId: startNodeId || null,
+          injectedState: state,
+          output: replyText,
+          cost: 0
+        });
+        return;
+      }
       const result = startNodeId
         ? await engineRef.current.executeFrom(startNodeId, text, 'test_session', state)
         : await engineRef.current.execute(text, 'test_session');
@@ -262,7 +296,7 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
     } catch (error) {
       addLog(`Error: ${error}`);
     }
-  }, [addLog, parseInjectedState, startNodeId, onClearTrace]);
+  }, [addLog, parseInjectedState, startNodeId, onClearTrace, testChannel]);
 
   // Pin the last run as an eval case
   const handleSaveCase = useCallback(() => {
@@ -490,6 +524,28 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
         >
           {simulating ? '⏹ Stop' : '▶ Simulate'}
         </button>
+        <div
+          title="Channel for typed test turns"
+          style={{ display: 'flex', border: '1px solid #333', borderRadius: 4, overflow: 'hidden' }}
+        >
+          {(['voice', 'chat'] as const).map(ch => (
+            <button
+              key={ch}
+              onClick={() => setTestChannel(ch)}
+              style={{
+                padding: '6px 10px',
+                border: 'none',
+                background: testChannel === ch ? '#8b5cf6' : 'transparent',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: 12,
+                textTransform: 'capitalize'
+              }}
+            >
+              {ch === 'voice' ? '🎙️ Voice' : '💬 Chat'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
