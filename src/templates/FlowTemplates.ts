@@ -315,6 +315,156 @@ export const flowTemplates: FlowTemplate[] = [
         { id: 'e3', source: 'intent', target: 'voice_output' }
       ]
     }
+  },
+  {
+    id: 'knowledge-base-agent',
+    name: 'Knowledge Base Agent',
+    description: 'Answer from your knowledge base with citations; escalate when unanswerable. Point agentic.rag at your KB to extend.',
+    category: 'Self-Help',
+    icon: '📚',
+    tags: ['rag', 'knowledge-base', 'self-help', 'citations', 'extendable'],
+    flow: {
+      id: 'template_kb_agent',
+      name: 'Knowledge Base Agent',
+      version: '1.0.0',
+      nodes: [
+        {
+          id: 'chat_input',
+          type: 'chat.input',
+          position: { x: 100, y: 200 },
+          data: { config: { quickReplies: ['Billing help', 'Talk to human'] }, label: 'Chat Input' }
+        },
+        {
+          id: 'rag',
+          type: 'agentic.rag',
+          position: { x: 350, y: 200 },
+          data: { config: { knowledgeBase: 'support_kb', topK: 4, scoreThreshold: 0.7 }, label: 'Knowledge Base' }
+        },
+        {
+          id: 'reasoning',
+          type: 'agentic.reasoning_loop',
+          position: { x: 600, y: 200 },
+          data: { config: { model: 'gpt-4o-mini', maxIterations: 4 }, label: 'Answer' }
+        },
+        {
+          id: 'chat_output',
+          type: 'chat.output',
+          position: { x: 850, y: 200 },
+          data: { config: { markdown: true, citations: true }, label: 'Chat Output' }
+        },
+        {
+          id: 'handoff',
+          type: 'deterministic.human_handoff',
+          position: { x: 600, y: 420 },
+          data: { config: { queue: 'general' }, label: 'Handoff' }
+        }
+      ],
+      edges: [
+        { id: 'e1', source: 'chat_input', target: 'rag' },
+        { id: 'e2', source: 'rag', target: 'reasoning' },
+        { id: 'e3', source: 'reasoning', target: 'chat_output' }
+      ]
+    }
+  },
+  {
+    id: 'website-assistant',
+    name: 'Website Assistant',
+    description: 'Sync a site into a KB, then chat over it with citations. Production: run Website Sync once, then ask; demo runs both inline.',
+    category: 'Self-Help',
+    icon: '🌐',
+    tags: ['rag', 'website-sync', 'knowledge-base', 'extendable'],
+    flow: {
+      id: 'template_website_assistant',
+      name: 'Website Assistant',
+      version: '1.0.0',
+      nodes: [
+        {
+          id: 'crawl',
+          type: 'agentic.webcrawler',
+          position: { x: 100, y: 200 },
+          data: {
+            config: {
+              provider: 'firecrawl',
+              startUrls: ['https://example.com/docs'],
+              crawlSubpages: true,
+              pageLimit: 50,
+              maxDepth: 2,
+              includePaths: [],
+              excludePaths: ['/admin'],
+              targetKnowledgeBase: 'website_kb'
+            },
+            label: 'Sync Site'
+          }
+        },
+        {
+          id: 'chat_input',
+          type: 'chat.input',
+          position: { x: 350, y: 200 },
+          data: { config: { quickReplies: ['Pricing', 'Getting started'] }, label: 'Chat Input' }
+        },
+        {
+          id: 'rag',
+          type: 'agentic.rag',
+          position: { x: 600, y: 200 },
+          data: { config: { knowledgeBase: 'website_kb', topK: 4, scoreThreshold: 0.7 }, label: 'Site KB' }
+        },
+        {
+          id: 'chat_output',
+          type: 'chat.output',
+          position: { x: 850, y: 200 },
+          data: { config: { markdown: true, citations: true }, label: 'Chat Output' }
+        }
+      ],
+      edges: [
+        { id: 'e1', source: 'crawl', target: 'chat_input' },
+        { id: 'e2', source: 'chat_input', target: 'rag' },
+        { id: 'e3', source: 'rag', target: 'chat_output' }
+      ]
+    }
+  },
+  {
+    id: 'website-sync',
+    name: 'Website Sync',
+    description: 'Sync a website into a named knowledge base (provider, sub-pages, limits, include/exclude paths). Run first, then point any RAG flow at the KB id.',
+    category: 'Self-Help',
+    icon: '🔄',
+    tags: ['website-sync', 'knowledge-base', 'indexing', 'extendable'],
+    flow: {
+      id: 'template_website_sync',
+      name: 'Website Sync',
+      version: '1.0.0',
+      nodes: [
+        {
+          id: 'crawl',
+          type: 'agentic.webcrawler',
+          position: { x: 100, y: 200 },
+          data: {
+            config: {
+              provider: 'firecrawl',
+              startUrls: ['https://example.com/docs'],
+              crawlSubpages: true,
+              pageLimit: 50,
+              maxDepth: 2,
+              includePaths: [],
+              excludePaths: ['/admin'],
+              chunkSize: 1000,
+              chunkOverlap: 200,
+              targetKnowledgeBase: 'website_kb'
+            },
+            label: 'Sync Site'
+          }
+        },
+        {
+          id: 'chat_output',
+          type: 'chat.output',
+          position: { x: 400, y: 200 },
+          data: { config: { markdown: false, citations: false }, label: 'Index Report' }
+        }
+      ],
+      edges: [
+        { id: 'e1', source: 'crawl', target: 'chat_output' }
+      ]
+    }
   }
 ];
 

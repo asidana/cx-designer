@@ -1,16 +1,17 @@
-# StreamLink — Telephony Gateway Service
+# Voice Gateway — Telephony Gateway Service
 
-StreamLink connects agents with CCaaS environments and telephony over
-**SIP, WebSocket, or gRPC**, and exposes agents to outside systems for
-telephony integrations. It is a *SIP-gateway-style service*: the far end
-sees trunks/endpoints; inside, calls route to agents.
+The Voice Gateway connects agents with CCaaS environments and telephony
+over **SIP, WebSocket, or gRPC**, and exposes agents to outside systems
+for telephony integrations. It is a *SIP-gateway-style service*: the far
+end sees trunks/endpoints (SIP trunking à la Vapi/Retell BYO); inside,
+calls route to agents.
 
 ```
  Genesys / Five9 / Avaya / Connect / PSTN
             │ SIP trunk / WS / gRPC
             ▼
-      StreamLink endpoints ──▶ Sentinel gate ──▶ bound agent
-            │                        (policy)      (business logic)
+      Voice Gateway endpoints ──▶ Agent Firewall ──▶ bound agent
+            │                          (policy)       (business logic)
             ├── audio bridging (RTP/Opus frames)
             ├── DTMF (RFC2833 — never STT audio)
             ├── warm / blind transfer
@@ -33,8 +34,8 @@ warm transfer, recorder fork pause.
 
 - `addEndpoint()` — expose a trunk/URL/address to outside systems.
 - `bindAgent()` — register an agent with audio/DTMF/hangup handlers.
-- `inboundCall()` — telephony → Sentinel `pre_llm` gate → agent.
-- `outboundCall()` — agent-initiated, Sentinel `pre_tool` gate as
+- `inboundCall()` — telephony → firewall `pre_llm` gate → agent.
+- `outboundCall()` — agent-initiated, firewall `pre_tool` gate as
   `streamlink:outbound-call` (callbacks, reminders need policy approval).
 - `warmTransfer()` / `blindTransfer()`, `pauseRecording()` /
   `resumeRecording()`, `hangup()` with disposition callback for
@@ -49,12 +50,12 @@ STT), recording toggle, and PCI auto-pause on payment.
 ## PCI Rule
 
 Card capture uses DTMF with recording paused. Redaction after the fact
-is not PCI-safe — StreamLink pauses the media fork; Sentinel redacts
+is not PCI-safe — the gateway pauses the media fork; the firewall redacts
 anything that still leaks before logs and models.
 
 ## Simulations
 
 `LoopbackTransport` pairs both call legs in-process: the mock personas
-and scenarios in `docs/SIMULATION.md` run through StreamLink with zero
+and scenarios in `docs/SIMULATION.md` run through the gateway with zero
 credentials. Swap the transport for a real stack at deploy time —
 flow JSON does not change.

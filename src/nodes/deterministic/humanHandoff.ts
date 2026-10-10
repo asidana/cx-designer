@@ -1,11 +1,10 @@
 /**
- * Human Handoff Node — escalate to a human agent
- * 
- * Transfers the conversation to a human agent with:
- * - Full context summary
- - Priority routing
- * - Queue selection
- * - Callback scheduling
+ * Human Handoff Node - escalate to a human agent
+ *
+ * Transfers with full context (history, AI summary, suggested next step).
+ * Transfer modes follow voice-market terms: cold transfer drops off
+ * immediately, warm transfer briefs the destination first. Escalation
+ * triggers follow Botpress terms: topic, sentiment, tier, request.
  */
 
 import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
@@ -13,6 +12,10 @@ import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
 interface HandoffConfig {
   queue: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  mode: 'cold' | 'warm';
+  destination?: string;
+  transferMessage: string;
+  triggers: string[];
   contextSummary: boolean;
   transcriptIncluded: boolean;
   callbackEnabled: boolean;
@@ -24,7 +27,7 @@ export const humanHandoffNode: NodeDefinition = {
   type: 'deterministic.human_handoff',
   category: 'deterministic',
   label: 'Human Handoff',
-  description: 'Escalate to a human agent with full context',
+  description: 'Escalate to a human agent with full context (cold/warm transfer)',
   icon: '👤',
   color: '#3b82f6',
   inputs: [
@@ -61,6 +64,38 @@ export const humanHandoffNode: NodeDefinition = {
       default: 'medium'
     },
     {
+      name: 'mode',
+      label: 'Transfer Mode',
+      type: 'select',
+      options: [
+        { label: 'Cold transfer (drop off immediately)', value: 'cold' },
+        { label: 'Warm transfer (brief destination first)', value: 'warm' }
+      ],
+      default: 'cold',
+      description: 'Voice-market transfer modes (Vapi/Retell terms)'
+    },
+    {
+      name: 'destination',
+      label: 'Destination',
+      type: 'string',
+      placeholder: '+14155550100 or sip:queue@example.com',
+      description: 'Phone number (E.164) or SIP URI for voice transfers'
+    },
+    {
+      name: 'transferMessage',
+      label: 'Transfer Message',
+      type: 'textarea',
+      default: 'Transferring you now.',
+      description: 'Spoken to the caller (and, on warm transfer, to brief the destination)'
+    },
+    {
+      name: 'triggers',
+      label: 'Escalation Triggers (JSON)',
+      type: 'json',
+      default: ['explicit-request'],
+      description: 'Topic, sentiment, tier, or explicit request, e.g. ["angry", "vip-tier", "explicit-request"]'
+    },
+    {
       name: 'contextSummary',
       label: 'Include Context Summary',
       type: 'boolean',
@@ -83,11 +118,11 @@ export const humanHandoffNode: NodeDefinition = {
 
   async execute(context: ExecutionContext): Promise<NodeResult> {
     const config = this.config as unknown as HandoffConfig;
-    
+
     // In real implementation:
     // 1. Generate context summary
     // 2. Create handoff ticket
-    // 3. Route to queue
+    // 3. Cold: route immediately; warm: brief destination, then bridge
     // 4. Return handoff details
 
     return {
@@ -97,7 +132,11 @@ export const humanHandoffNode: NodeDefinition = {
         estimatedWait: 3
       },
       nextNodes: [],
-      variableUpdates: { handoffStatus: 'pending' },
+      variableUpdates: {
+        handoffStatus: 'pending',
+        handoffMode: config.mode || 'cold',
+        handoffDestination: config.destination || null
+      },
       guardrailViolations: [],
       auditEvents: []
     };
@@ -115,6 +154,9 @@ export const humanHandoffNode: NodeDefinition = {
   private _config: HandoffConfig = {
     queue: 'general',
     priority: 'medium',
+    mode: 'cold',
+    transferMessage: 'Transferring you now.',
+    triggers: ['explicit-request'],
     contextSummary: true,
     transcriptIncluded: true,
     callbackEnabled: false,

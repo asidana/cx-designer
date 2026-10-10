@@ -23,7 +23,7 @@ interface SentinelNodeConfig {
 export const sentinelNode: NodeDefinition = {
   type: 'governance.sentinel',
   category: 'governance',
-  label: 'Sentinel',
+  label: 'Agent Firewall',
   description: 'Agent gateway: rate limit, rules, PII redaction, injection scan',
   icon: '🛡️',
   color: '#f97316',

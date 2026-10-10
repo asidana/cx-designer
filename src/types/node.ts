@@ -17,6 +17,7 @@ export type NodeType =
   // Agentic Layer
   | 'agentic.intent_classifier'
   | 'agentic.reasoning_loop'
+  | 'agentic.webcrawler'
   | 'agentic.planning'
   | 'agentic.rag'
   | 'agentic.memory'

@@ -194,6 +194,30 @@ describe('Flow Templates', () => {
     expect(template).toBeDefined();
     expect(template?.flow.nodes.length).toBeGreaterThan(0);
   });
+
+  it.each([
+    ['knowledge-base-agent'],
+    ['website-assistant'],
+    ['website-sync']
+  ])('should load RAG template %s with valid structure', async (id) => {
+    const { getTemplate } = await import('../src/templates/FlowTemplates');
+    const { FlowValidator } = await import('../src/validation/FlowValidator');
+    const template = getTemplate(id);
+
+    expect(template).toBeDefined();
+    expect(template?.flow.nodes.length).toBeGreaterThan(0);
+    const result = FlowValidator.validate(template!.flow);
+    expect(result.stats.entryNodeCount).toBeGreaterThan(0);
+  });
+
+  it('should register the website sync node', async () => {
+    await import('../src/nodes/index');
+    const { nodeRegistry } = await import('../src/nodes/registry');
+    const node = nodeRegistry.get('agentic.webcrawler');
+
+    expect(node).toBeDefined();
+    expect(node?.label).toBe('Website Sync');
+  });
 });
 
 describe('Framework Adapters', () => {

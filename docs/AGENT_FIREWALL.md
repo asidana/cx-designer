@@ -1,20 +1,22 @@
-# Sentinel — Agent Gateway
+# Agent Firewall — Policy Enforcement Gateway
 
-Sentinel is the protective gateway around **agents** — not an LLM gateway.
+The Agent Firewall is the protective gateway around **agents** — not an
+LLM gateway. (Named to avoid confusion with SIEM products: this is
+agent policy enforcement, not security-event management.)
 The division of ownership is strict:
 
 - **Agents** own business logic and use cases.
-- **Sentinel** owns protection: policy, PII/PHI, injection defense, rate
-  limits, approvals.
-- **StreamLink** owns transport: SIP/WebSocket/gRPC legs into CCaaS and
-  telephony (see `docs/STREAMLINK.md`).
+- **Agent Firewall** owns protection: policy, PII/PHI, injection defense,
+  rate limits, approvals.
+- **Voice Gateway** owns transport: SIP/WebSocket/gRPC legs into CCaaS and
+  telephony (see `docs/VOICE_GATEWAY.md`).
 
 ```
-outside world ──▶ StreamLink ──▶ Sentinel ──▶ agent
-  (SIP/WS/gRPC)    (transport)    (policy)    (business logic)
+outside world ──▶ Voice Gateway ──▶ Agent Firewall ──▶ agent
+  (SIP/WS/gRPC)      (transport)        (policy)       (business logic)
 ```
 
-Every request passes through Sentinel before it reaches the agent,
+Every request passes through the firewall before it reaches the agent,
 tools, or caller. One pipeline, four phases:
 
 ```
@@ -68,7 +70,7 @@ Fields are dot-paths into session state. Actions: `allow`, `block`,
 |------|-------|-----|
 | `governance.sentinel` node | Canvas | Visible trust boundary at a chosen phase |
 | `deterministic.business_rule` node | Canvas | Pure policy check, no scanning overhead |
-| `Sentinel` class | Code | `new Sentinel({rules, piiRedaction, injectionScan, rateLimit, failClosed})`, then `.check({phase, content, session, toolName?, identity?})` |
+| `Sentinel` class (`src/sentinel/`) | Code | `new Sentinel({...})`, then `.check({phase, content, session, toolName?, identity?})` — internal name predates the Agent Firewall rename |
 | `MCPGateway.setSentinel()` | Gateway | Every MCP tool call gated `pre_tool` before execution |
 
 ## PII & Injection
@@ -83,4 +85,4 @@ Fields are dot-paths into session state. Actions: `allow`, `block`,
 
 `failClosed: true` (default) denies on internal error. Use `false` only
 for non-mutating read phases. Preflight flags agentic nodes whose tools
-lack preconditions; Sentinel enforces them at runtime.
+lack preconditions; the firewall enforces them at runtime.

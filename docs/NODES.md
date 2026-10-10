@@ -22,7 +22,8 @@ All built-in node types, grouped by palette category. Node definitions live in `
 |------|-------|------------------|---------|
 | `agentic.intent_classifier` | Intent Classifier | `input` → `intent`, `confidence`, `entities` | LLM intent routing with per-intent output handles and confidence threshold + fallback |
 | `agentic.reasoning_loop` | Reasoning Loop | `input` → `response`, `toolCalls`, `cost` | ReAct loop with max iterations, cost ceiling, wall-clock deadline (`deadlineMs`, default 12s), loop detection, tool preconditions, and pre-execution approval |
-| `agentic.rag` | Knowledge Retrieval | `input` → `context`, `sources` | Vector retrieval with top-K, score threshold, embedding model, optional reranker |
+| `agentic.rag` | Knowledge Retrieval | `input` → `context`, `sources` | Vector retrieval over a knowledge base with top-K, score threshold, embedding model, optional reranker |
+| `agentic.webcrawler` | Website Sync | `input` → `documents`, `chunks`, `knowledgeBase` | Sync website content into a knowledge base (Firecrawl / Jina Reader / sitemap; sub-pages, limits, include/exclude paths) |
 | `agentic.memory` | Memory | `input` → `history`, `summary` | Short/long-term conversation memory with max-history trim and summarization, Redis/Postgres backing |
 
 Framework adapters (`agentic.langgraph`, `agentic.strands`, `agentic.adk`) are registered from `src/adapters/`. Per the architecture (§17.5), prefer the native runtime; use the generic `external.agent` pattern for third-party frameworks.
@@ -49,10 +50,10 @@ Framework adapters (`agentic.langgraph`, `agentic.strands`, `agentic.adk`) are r
 | Type | Label | Inputs → Outputs | Purpose |
 |------|-------|------------------|---------|
 | `governance.guardrail` | Guardrail | `input` → `allowed`, `redacted`, `violations` | Built-in PII redaction + toxicity filter, or a custom guardrail app (`block` \| `warn` \| `redact` \| `escalate`) |
-| `governance.sentinel` | Sentinel | `input` → `allowed`, `action`, `content`, `violations` | Full agent gateway at a phase (`pre_llm`/`post_llm`/`pre_tool`/`post_tool`): rate limit → rule engine → PII redaction → injection scan |
+| `governance.sentinel` | Agent Firewall | `input` → `allowed`, `action`, `content`, `violations` | Full firewall at a phase (`pre_llm`/`post_llm`/`pre_tool`/`post_tool`): rate limit → rule engine → PII/PHI redaction → injection scan |
 
 See `src/guardrails/GuardrailSDK.ts` for the custom guardrail app contract.
-See `docs/SENTINEL.md` for the Sentinel gateway, rule engine, and phase model.
+See `docs/AGENT_FIREWALL.md` for the firewall, rule engine, and phase model. (`src/sentinel/` paths predate the rename.)
 
 ## Integration
 
@@ -60,7 +61,7 @@ See `docs/SENTINEL.md` for the Sentinel gateway, rule engine, and phase model.
 |------|-------|------------------|---------|
 | `integration.http` | HTTP Request | `input` → `response`, `status` | REST calls with `{{variable}}` substitution, bearer/API-key auth, timeout, retries |
 | `integration.telephony` | Telephony | `input` → `callId`, `status` | SIP/PSTN/WebRTC via Twilio/Plivo/Vonage/custom, inbound/outbound, recording, IVR |
-| `integration.streamlink` | StreamLink | `input` → `callId`, `status` | Expose the agent over SIP/WebSocket/gRPC to CCaaS (Genesys/Five9/Avaya/Connect); RFC2833 DTMF, transfers, PCI recording pause |
+| `integration.streamlink` | Voice Gateway | `input` → `callId`, `status` | Expose the agent over SIP/WebSocket/gRPC to CCaaS (Genesys/Five9/Avaya/Connect); SIP trunking, RFC2833 DTMF, warm/blind transfer, PCI recording pause |
 | `integration.webhook` | Webhook | `input` → `response` | Incoming or outgoing webhooks with secret verification |
 | `integration.database` | Database | `input` → `result` | PostgreSQL/DynamoDB/Redis/MySQL query/insert/update/delete |
 

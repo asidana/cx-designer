@@ -65,7 +65,10 @@ export const chatOutputNode: NodeDefinition = {
 
   async execute(context: ExecutionContext): Promise<NodeResult> {
     const config = this.config as unknown as ChatOutputConfig;
-    const text = String(context.variables.get('input') || '');
+    // Prefer turn text; fall back to upstream display text (e.g. crawler summary).
+    const text = String(
+      context.variables.get('input') || context.variables.get('displayText') || ''
+    );
 
     const sources = config.citations
       ? ((context.variables.get('ragSources') as Array<{ title: string }>) || [])

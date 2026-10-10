@@ -24,7 +24,7 @@ interface StreamLinkNodeConfig {
 export const streamlinkNode: NodeDefinition = {
   type: 'integration.streamlink',
   category: 'integration',
-  label: 'StreamLink',
+  label: 'Voice Gateway',
   description: 'Expose the agent over SIP/WebSocket/gRPC to CCaaS and telephony',
   icon: '🔗',
   color: '#6366f1',
@@ -69,7 +69,7 @@ export const streamlinkNode: NodeDefinition = {
       type: 'string',
       placeholder: 'support-queue-sip',
       required: true,
-      description: 'StreamLink endpoint this agent binds to'
+      description: 'Voice gateway endpoint this agent binds to'
     },
     {
       name: 'did',

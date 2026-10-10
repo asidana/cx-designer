@@ -12,6 +12,7 @@ import { chatInputNode } from './chat/chatInput';
 import { chatOutputNode } from './chat/chatOutput';
 import { intentClassifierNode } from './agentic/intentClassifier';
 import { reasoningLoopNode } from './agentic/reasoningLoop';
+import { webcrawlerNode } from './agentic/webcrawler';
 import { ragNode } from './agentic/ragNode';
 import { memoryNode } from './agentic/memoryNode';
 import { slotCollectorNode } from './deterministic/slotCollector';
@@ -42,6 +43,7 @@ export function registerBuiltInNodes(): void {
   // Agentic Layer
   nodeRegistry.register(intentClassifierNode);
   nodeRegistry.register(reasoningLoopNode);
+  nodeRegistry.register(webcrawlerNode);
   nodeRegistry.register(ragNode);
   nodeRegistry.register(memoryNode);
   

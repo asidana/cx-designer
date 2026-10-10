@@ -93,8 +93,8 @@ export function lintFlow(nodes: Node[], edges: PreflightPanelProps['edges']): Li
   if (hasVoiceOrAgentic && !hasGuardrail) {
     issues.push({
       type: 'warning',
-      message: 'No guardrail or Sentinel gate — PII and injection pass through unchecked',
-      fix: 'Add a Guardrail or Sentinel node before LLM and tool calls.'
+      message: 'No guardrail or firewall gate — PII and injection pass through unchecked',
+      fix: 'Add a Guardrail or Agent Firewall node before LLM and tool calls.'
     });
   }
 
