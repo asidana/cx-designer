@@ -5,7 +5,23 @@
  * Handles audio streaming, trace events, and metrics.
  */
 
-import { TraceEvent, Metrics } from '../types/node';
+import type { TraceEventType } from '../engine/flowEngine';
+
+export interface TraceEvent {
+  id: string;
+  timestamp: number;
+  nodeId: string;
+  eventType: TraceEventType | 'guardrail' | 'tool_call';
+  data: Record<string, unknown>;
+  latencyMs: number;
+}
+
+export interface Metrics {
+  totalLatencyMs: number;
+  tokenCount: number;
+  cost: number;
+  guardrailViolations: number;
+}
 
 export interface WebSocketConfig {
   url: string;

@@ -104,7 +104,7 @@ describe('E2E: Complete User Workflows', () => {
         async validate(request: any) {
           const violations = [];
           
-          if (this.detectPII(request.agentResponse)) {
+          if (this.detectPII(request.agentResponse).found) {
             violations.push({
               type: 'pii',
               severity: 'high',

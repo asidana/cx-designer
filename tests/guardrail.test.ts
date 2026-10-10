@@ -2,14 +2,14 @@
  * Guardrail Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { GuardrailApp, ValidationRequest, ValidationResponse } from '../src/guardrails/GuardrailSDK';
 
 class TestGuardrail extends GuardrailApp {
   async validate(request: ValidationRequest): Promise<ValidationResponse> {
     const violations = [];
     
-    if (this.detectPII(request.agentResponse)) {
+    if (this.detectPII(request.agentResponse).found) {
       violations.push({
         type: 'pii',
         severity: 'high',

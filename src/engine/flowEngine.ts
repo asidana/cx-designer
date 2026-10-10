@@ -9,6 +9,9 @@
 
 import { FlowGraph, FlowNode, ExecutionContext, NodeResult, AudioChunk } from '../types/node';
 import { nodeRegistry } from '../nodes/registry';
+// Side-effect import: registers all built-in nodes + framework adapters,
+// so the engine works standalone (tests, scripts) without the App shell.
+import '../nodes/index';
 
 export type TraceEventType = 'start' | 'complete' | 'error';
 export type TraceCallback = (
@@ -174,7 +177,9 @@ export class FlowEngine {
     });
 
     try {
-      const result = await nodeDef.execute(context);
+      // Effective config: type defaults merged with this instance's config.
+      const effectiveConfig = { ...(nodeDef.config || {}), ...(node.data.config || {}) };
+      const result = await nodeDef.execute(context, effectiveConfig);
       const latency = Date.now() - startTime;
 
       // Update context with results
@@ -291,20 +296,14 @@ export class FlowEngine {
  * Audio Pipeline — handles STT, VAD, and TTS
  */
 class AudioPipeline {
-  private config: {
-    onTranscript: (text: string, isFinal: boolean) => void;
-    onBargeIn: () => void;
-  };
-  private isSpeaking = false;
+  constructor(
+    _config: {
+      onTranscript: (text: string, isFinal: boolean) => void;
+      onBargeIn: () => void;
+    }
+  ) {}
 
-  constructor(config: {
-    onTranscript: (text: string, isFinal: boolean) => void;
-    onBargeIn: () => void;
-  }) {
-    this.config = config;
-  }
-
-  async processChunk(chunk: AudioChunk): Promise<void> {
+  async processChunk(_chunk: AudioChunk): Promise<void> {
     // In real implementation:
     // 1. Run VAD on chunk
     // 2. If speech detected, run STT

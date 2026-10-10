@@ -8,7 +8,7 @@
  *   gateway.start(3000);
  */
 
-import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
+import { FlowGraph } from '../types/node';
 import { FlowEngine } from '../engine/flowEngine';
 import { Sentinel } from '../sentinel/sentinel';
 import { AgentRouter } from '../sentinel/agentRouter';
@@ -32,15 +32,12 @@ export interface MCPServerConfig {
 }
 
 export class MCPGateway {
-  private flow: FlowGraph;
   private engine: FlowEngine;
   private config: MCPServerConfig;
-  private server: any;
   private sentinel: Sentinel | null = null;
   private agentRouter: AgentRouter | null = null;
 
   constructor(flow: FlowGraph, config: Partial<MCPServerConfig> = {}) {
-    this.flow = flow;
     this.engine = new FlowEngine(flow);
     this.config = {
       name: config.name || 'agentic-cx-gateway',
@@ -187,8 +184,6 @@ export class MCPGateway {
  * For full control over auth, rate limiting, and routing.
  */
 export class HTTPGateway {
-  private flow: FlowGraph;
-  private engine: FlowEngine;
   private config: {
     port: number;
     routes: Array<{
@@ -199,9 +194,7 @@ export class HTTPGateway {
     }>;
   };
 
-  constructor(flow: FlowGraph, config: Partial<HTTPGateway['config']> = {}) {
-    this.flow = flow;
-    this.engine = new FlowEngine(flow);
+  constructor(_flow: FlowGraph, config: Partial<HTTPGateway['config']> = {}) {
     this.config = {
       port: config.port || 8080,
       routes: config.routes || []

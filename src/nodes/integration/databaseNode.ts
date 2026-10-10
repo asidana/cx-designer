@@ -8,9 +8,9 @@
  * - Custom SQL
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
-interface DatabaseConfig {
+export interface DatabaseConfig {
   type: 'postgres' | 'dynamodb' | 'redis' | 'mysql';
   operation: 'query' | 'insert' | 'update' | 'delete';
   connectionString?: string;
@@ -74,8 +74,7 @@ export const databaseNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as DatabaseConfig;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // 1. Substitute variables in query
@@ -103,12 +102,8 @@ export const databaseNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): DatabaseConfig {
-    return this._config;
-  }
-
-  private _config: DatabaseConfig = {
+  config: {
     type: 'postgres',
     operation: 'query'
-  };
+  },
 };

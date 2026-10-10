@@ -10,7 +10,7 @@
  * - Unreachable nodes
  */
 
-import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
+import { FlowGraph } from '../types/node';
 
 export interface ValidationIssue {
   type: 'error' | 'warning' | 'info';
@@ -137,7 +137,6 @@ export class FlowValidator {
     }
 
     const errors = issues.filter(i => i.type === 'error');
-    const warnings = issues.filter(i => i.type === 'warning');
 
     return {
       valid: errors.length === 0,

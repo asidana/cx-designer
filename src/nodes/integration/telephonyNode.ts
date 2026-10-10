@@ -9,9 +9,9 @@
  * - IVR integration
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
-interface TelephonyConfig {
+export interface TelephonyConfig {
   provider: 'twilio' | 'plivo' | 'vonage' | 'custom';
   mode: 'inbound' | 'outbound' | 'both';
   phoneNumber?: string;
@@ -87,8 +87,7 @@ export const telephonyNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as TelephonyConfig;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // 1. Initialize telephony provider
@@ -121,14 +120,10 @@ export const telephonyNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): TelephonyConfig {
-    return this._config;
-  }
-
-  private _config: TelephonyConfig = {
+  config: {
     provider: 'twilio',
     mode: 'inbound',
     recordCalls: true,
     ivrEnabled: false
-  };
+  },
 };

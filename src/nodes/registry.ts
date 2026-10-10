@@ -8,7 +8,7 @@
 import { NodeDefinition, NodeType } from '../types/node';
 
 class NodeRegistry {
-  private nodes = new Map<NodeType, NodeDefinition>();
+  nodes = new Map<NodeType, NodeDefinition>();
 
   register(node: NodeDefinition): void {
     this.nodes.set(node.type, node);

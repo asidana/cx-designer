@@ -6,7 +6,7 @@
  * 2. Custom guardrail apps (HTTP or sidecar)
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface GuardrailConfig {
   mode: 'builtin' | 'custom';
@@ -27,7 +27,7 @@ interface GuardrailConfig {
   };
 }
 
-export const guardrailNode: NodeDefinition = {
+export const guardrailNode: NodeDefinition & Record<string, any> = {
   type: 'governance.guardrail',
   category: 'governance',
   label: 'Guardrail',
@@ -86,8 +86,8 @@ export const guardrailNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as GuardrailConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as GuardrailConfig;
     const input = context.variables.get('input') as string || '';
 
     if (config.mode === 'custom' && config.custom?.appUrl) {
@@ -97,19 +97,19 @@ export const guardrailNode: NodeDefinition = {
     return this.executeBuiltinGuardrail(input, config, context);
   },
 
-  private async executeBuiltinGuardrail(
+  async executeBuiltinGuardrail(
     input: string,
     config: GuardrailConfig,
-    context: ExecutionContext
+    _context: ExecutionContext
   ): Promise<NodeResult> {
-    const violations = [];
+    const violations: Array<{ type: string; severity: 'high' | 'medium'; message: string; location: string }> = [];
     let redacted = input;
 
     // PII Redaction
     if (config.builtin?.piiRedaction) {
       const piiResult = this.detectPII(input);
       if (piiResult.found) {
-        violations.push({ type: 'pii', severity: 'high', message: 'PII detected' });
+        violations.push({ type: 'pii', severity: 'high', message: 'PII detected', location: 'input' });
         redacted = piiResult.redacted;
       }
     }
@@ -118,7 +118,7 @@ export const guardrailNode: NodeDefinition = {
     if (config.builtin?.toxicityFilter) {
       const toxicityResult = this.detectToxicity(input);
       if (toxicityResult.toxic) {
-        violations.push({ type: 'toxicity', severity: 'medium', message: 'Toxic content detected' });
+        violations.push({ type: 'toxicity', severity: 'medium', message: 'Toxic content detected', location: 'input' });
       }
     }
 
@@ -135,10 +135,10 @@ export const guardrailNode: NodeDefinition = {
     };
   },
 
-  private async executeCustomGuardrail(
+  async executeCustomGuardrail(
     input: string,
-    config: GuardrailConfig,
-    context: ExecutionContext
+    _config: GuardrailConfig,
+    _context: ExecutionContext
   ): Promise<NodeResult> {
     // In real implementation: HTTP call to custom guardrail app
     return {
@@ -154,7 +154,7 @@ export const guardrailNode: NodeDefinition = {
     };
   },
 
-  private detectPII(text: string): { found: boolean; redacted: string } {
+  detectPII(text: string): { found: boolean; redacted: string } {
     // Simple PII detection patterns
     const patterns = [
       { regex: /\b\d{3}-\d{2}-\d{4}\b/g, replacement: '***-**-****' }, // SSN
@@ -175,24 +175,20 @@ export const guardrailNode: NodeDefinition = {
     return { found, redacted };
   },
 
-  private detectToxicity(text: string): { toxic: boolean } {
+  detectToxicity(text: string): { toxic: boolean } {
     // In real implementation: call toxicity model
     const toxicPatterns = ['hate', 'kill', 'stupid', 'idiot'];
     const toxic = toxicPatterns.some(p => text.toLowerCase().includes(p));
     return { toxic };
   },
 
-  validate(config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
+  validate(_config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
     const errors: Array<{ field: string; message: string }> = [];
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): GuardrailConfig {
-    return this._config;
-  }
-
-  private _config: GuardrailConfig = {
+  config: {
     mode: 'builtin',
     builtin: { piiRedaction: true, toxicityFilter: true }
-  };
+  },
 };

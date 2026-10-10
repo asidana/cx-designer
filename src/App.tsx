@@ -31,7 +31,7 @@ import { PluginMarketplace } from './components/PluginMarketplace';
 import { TemplateGallery } from './components/TemplateGallery';
 import { ValidationPanel } from './components/ValidationPanel';
 import { PreflightPanel, lintFlow } from './components/PreflightPanel';
-import { SettingsPanel } from './components/SettingsPanel';
+import { SettingsPanel, Settings } from './components/SettingsPanel';
 import { HelpPanel } from './components/HelpPanel';
 import { Onboarding } from './components/Onboarding';
 import { VersionControlPanel } from './components/VersionControlPanel';
@@ -70,7 +70,7 @@ const App: React.FC = () => {
   const [showMonitoring, setShowMonitoring] = useState(false);
   const [showCollaboration, setShowCollaboration] = useState(false);
   const [flowVersion, setFlowVersion] = useState('1.0.0');
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<Settings>({
     theme: 'dark',
     autoSave: true,
     autoSaveInterval: 5000,
@@ -145,7 +145,12 @@ const App: React.FC = () => {
     (sourceId: string, targetId: string): boolean => {
       if (edges.some(e => e.source === sourceId && e.target === targetId)) return false;
       pendingHistoryLabel.current = 'Connect nodes';
-      setEdges(eds => addEdge({ source: sourceId, target: targetId, animated: true }, eds));
+      setEdges(eds =>
+        addEdge(
+          { id: `e_${sourceId}_${targetId}_${Date.now()}`, source: sourceId, target: targetId, animated: true },
+          eds
+        )
+      );
       return true;
     },
     [edges, setEdges]

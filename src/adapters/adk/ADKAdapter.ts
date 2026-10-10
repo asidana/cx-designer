@@ -8,7 +8,7 @@
  * - Declarative agent definitions
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface ADKTool {
   name: string;
@@ -68,8 +68,8 @@ export class ADKAdapter {
    * Execute an ADK agent (runtime)
    */
   static async execute(
-    config: ADKConfig,
-    context: ExecutionContext
+    _config: ADKConfig,
+    _context: ExecutionContext
   ): Promise<NodeResult> {
     // In real implementation:
     // 1. Create ADK agent
@@ -158,8 +158,7 @@ export const adkNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as ADKConfig;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // 1. Create ADK agent
@@ -193,11 +192,7 @@ export const adkNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): ADKConfig {
-    return this._config;
-  }
-
-  private _config: ADKConfig = {
+  config: {
     name: 'agent',
     model: 'bedrock.claude-sonnet-4-20250514',
     instruction: '',
@@ -207,5 +202,5 @@ export const adkNode: NodeDefinition = {
       type: 'dynamodb',
       tableName: 'agent-sessions'
     }
-  };
+  },
 };

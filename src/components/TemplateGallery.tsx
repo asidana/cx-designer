@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import { flowTemplates, FlowTemplate } from '../templates/FlowTemplates';
+import { flowTemplates } from '../templates/FlowTemplates';
 import { FlowGraph } from '../types/node';
 
 interface TemplateGalleryProps {

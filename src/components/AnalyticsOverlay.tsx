@@ -26,7 +26,7 @@ interface NodeMetrics {
   lastExecuted?: number;
 }
 
-export const AnalyticsOverlay: React.FC<AnalyticsOverlayProps> = ({ nodes, edges, metrics }) => {
+export const AnalyticsOverlay: React.FC<AnalyticsOverlayProps> = ({ nodes, metrics }) => {
   // Calculate max values for normalization
   const maxLatency = Math.max(...Array.from(metrics.values()).map(m => m.avgLatencyMs), 1);
   const maxCost = Math.max(...Array.from(metrics.values()).map(m => m.avgCost), 0.01);

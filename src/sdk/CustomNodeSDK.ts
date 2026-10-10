@@ -108,7 +108,7 @@ export class CustomNodeSDK {
           { label: 'DELETE', value: 'DELETE' }
         ], default: config.method || 'GET' }
       ],
-      execute: async (context: ExecutionContext): Promise<NodeResult> => {
+      execute: async (_context: ExecutionContext): Promise<NodeResult> => {
         // In real implementation: make HTTP request
         return {
           outputs: { response: {}, status: 200 },
@@ -150,7 +150,7 @@ export class CustomNodeSDK {
         { name: 'systemPrompt', label: 'System Prompt', type: 'textarea', default: config.systemPrompt || '' },
         { name: 'temperature', label: 'Temperature', type: 'number', default: config.temperature ?? 0.7 }
       ],
-      execute: async (context: ExecutionContext): Promise<NodeResult> => {
+      execute: async (_context: ExecutionContext): Promise<NodeResult> => {
         // In real implementation: call LLM
         return {
           outputs: { response: 'LLM response' },
@@ -194,7 +194,7 @@ export class CustomNodeSDK {
         ], default: config.checkType },
         { name: 'customUrl', label: 'Custom URL', type: 'string', default: config.customUrl || '' }
       ],
-      execute: async (context: ExecutionContext): Promise<NodeResult> => {
+      execute: async (_context: ExecutionContext): Promise<NodeResult> => {
         // In real implementation: run guardrail check
         return {
           outputs: { allowed: true, violations: [] },

@@ -93,7 +93,7 @@ export function evalCondition(cond: RuleCondition, state: Record<string, unknown
 /** First matching rule for the phase wins; no match = allow. */
 export function evaluateRules(
   rules: Rule[],
-  phase: SentinelPhase,
+  phase: SentinelPhase | 'any',
   state: Record<string, unknown>
 ): RuleDecision {
   for (const rule of rules) {

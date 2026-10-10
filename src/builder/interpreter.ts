@@ -9,7 +9,7 @@
 import type { Node, Edge } from 'reactflow';
 import { nodeRegistry } from '../nodes/registry';
 import { FlowGenerator } from '../ai/FlowGenerator';
-import type { FlowGraph, NodeConfig, NodeType } from '../types/node';
+import type { FlowGraph, NodeType } from '../types/node';
 
 export type BuilderOp =
   | { kind: 'add'; nodeType: NodeType }
@@ -176,8 +176,10 @@ export async function interpret(text: string, ctx: BuilderContext): Promise<Buil
   }
 
   // Configure: "set X to Y [on Z]" / "change X to Y [on Z]" / "update ..."
+  // NOTE: matched against raw text (not normalized) so values keep
+  // hyphens and case ("gpt-4o-mini"); field/node lookup normalizes.
   {
-    const m = t.match(/^(set|change|update)\s+(.+?)\s+(to|=|as)\s+(.+)$/);
+    const m = raw.match(/^(set|change|update)\s+(.+?)\s+(to|=|as)\s+(.+)$/i);
     if (m) {
       const fieldPhrase = m[2];
       const valueRaw = m[4];

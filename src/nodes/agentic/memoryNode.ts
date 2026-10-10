@@ -4,7 +4,7 @@
  * Manages conversation history and persistent user memory.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface MemoryConfig {
   type: 'short_term' | 'long_term' | 'both';
@@ -13,7 +13,7 @@ interface MemoryConfig {
   storage: 'memory' | 'redis' | 'postgres';
 }
 
-export const memoryNode: NodeDefinition = {
+export const memoryNode: NodeDefinition & Record<string, any> = {
   type: 'agentic.memory',
   category: 'agentic',
   label: 'Memory',
@@ -66,8 +66,8 @@ export const memoryNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as MemoryConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as MemoryConfig;
     
     // Get existing history
     const history = (context.variables.get('conversationHistory') as Array<{ role: string; content: string }>) || [];
@@ -102,24 +102,20 @@ export const memoryNode: NodeDefinition = {
     };
   },
 
-  private async summarize(history: Array<{ role: string; content: string }>): Promise<string> {
+  async summarize(history: Array<{ role: string; content: string }>): Promise<string> {
     // In real implementation: call LLM to summarize
     return `Conversation with ${history.length} messages about various topics.`;
   },
 
-  validate(config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
+  validate(_config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
     const errors: Array<{ field: string; message: string }> = [];
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): MemoryConfig {
-    return this._config;
-  }
-
-  private _config: MemoryConfig = {
+  config: {
     type: 'both',
     maxHistory: 20,
     summaryEnabled: true,
     storage: 'redis'
-  };
+  },
 };

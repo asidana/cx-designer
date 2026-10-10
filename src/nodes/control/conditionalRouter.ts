@@ -8,7 +8,7 @@
  * - Confidence thresholds
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface RouterConfig {
   routes: Array<{
@@ -20,7 +20,7 @@ interface RouterConfig {
   defaultRoute: string;
 }
 
-export const conditionalRouterNode: NodeDefinition = {
+export const conditionalRouterNode: NodeDefinition & Record<string, any> = {
   type: 'control.conditional_router',
   category: 'control',
   label: 'Conditional Router',
@@ -52,8 +52,8 @@ export const conditionalRouterNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as RouterConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as RouterConfig;
     
     // Evaluate conditions in priority order
     const sortedRoutes = [...config.routes].sort((a, b) => a.priority - b.priority);
@@ -80,7 +80,7 @@ export const conditionalRouterNode: NodeDefinition = {
     };
   },
 
-  private evaluateCondition(condition: string, context: ExecutionContext): boolean {
+  evaluateCondition(condition: string, context: ExecutionContext): boolean {
     // Simple expression evaluator
     // Supports: "intent == 'billing'", "confidence > 0.8", "slots.account_id != null"
     try {
@@ -106,7 +106,7 @@ export const conditionalRouterNode: NodeDefinition = {
     }
   },
 
-  private resolveVariable(path: string, context: ExecutionContext): unknown {
+  resolveVariable(path: string, context: ExecutionContext): unknown {
     const parts = path.split('.');
     let value: unknown = context.variables;
     
@@ -134,12 +134,8 @@ export const conditionalRouterNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): RouterConfig {
-    return this._config;
-  }
-
-  private _config: RouterConfig = {
+  config: {
     routes: [],
     defaultRoute: ''
-  };
+  },
 };

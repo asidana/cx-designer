@@ -4,9 +4,9 @@
  * Handles incoming webhooks and sends outgoing webhook notifications.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
-interface WebhookConfig {
+export interface WebhookConfig {
   direction: 'incoming' | 'outgoing';
   url?: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -66,8 +66,7 @@ export const webhookNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as WebhookConfig;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // For incoming: parse webhook payload
@@ -94,12 +93,8 @@ export const webhookNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): WebhookConfig {
-    return this._config;
-  }
-
-  private _config: WebhookConfig = {
+  config: {
     direction: 'outgoing',
     method: 'POST'
-  };
+  },
 };

@@ -10,7 +10,7 @@
  *   - Loop detection
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult, ToolCall } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, ToolCall, NodeConfig } from '../../types/node';
 
 interface ReasoningConfig {
   model: string;
@@ -30,7 +30,7 @@ interface ReasoningConfig {
   deadlineMs?: number;
 }
 
-export const reasoningLoopNode: NodeDefinition = {
+export const reasoningLoopNode: NodeDefinition & Record<string, any> = {
   type: 'agentic.reasoning_loop',
   category: 'agentic',
   label: 'Reasoning Loop',
@@ -90,8 +90,8 @@ export const reasoningLoopNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as ReasoningConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as ReasoningConfig;
     
     let iteration = 0;
     let totalCost = 0;
@@ -159,9 +159,9 @@ export const reasoningLoopNode: NodeDefinition = {
     return this.terminate('max_iterations_reached', context, reasoningTrace, totalCost);
   },
 
-  private async plan(
-    context: ExecutionContext,
-    config: ReasoningConfig
+  async plan(
+    _context: ExecutionContext,
+    _config: ReasoningConfig
   ): Promise<{
     toolCall?: ToolCall;
     response?: string;
@@ -177,7 +177,7 @@ export const reasoningLoopNode: NodeDefinition = {
     };
   },
 
-  private async executeTool(
+  async executeTool(
     call: ToolCall,
     context: ExecutionContext
   ): Promise<{ result: unknown }> {
@@ -188,9 +188,9 @@ export const reasoningLoopNode: NodeDefinition = {
     return {
       result: { success: true }
     };
-  }
+  },
 
-  private checkPreconditions(
+  checkPreconditions(
     preconditions: Record<string, unknown> | undefined,
     context: ExecutionContext
   ): string | null {
@@ -202,9 +202,9 @@ export const reasoningLoopNode: NodeDefinition = {
       }
     }
     return null;
-  }
+  },
 
-  private isLooping(
+  isLooping(
     call: ToolCall | undefined,
     history: ToolCall[],
     config: { maxSameToolCalls: number }
@@ -217,19 +217,19 @@ export const reasoningLoopNode: NodeDefinition = {
         c.name === call.name &&
         JSON.stringify(c.args) === JSON.stringify(call.args)
       );
-  }
+  },
 
-  private async requestApproval(toolCall: unknown): Promise<boolean> {
+  async requestApproval(toolCall: unknown): Promise<boolean> {
     // In real implementation: send approval request to UI.
     // Must be called BEFORE executeTool, never after.
     void toolCall;
     return true;
-  }
+  },
 
-  private terminate(
+  terminate(
     reason: string,
-    context: ExecutionContext,
-    trace: string[],
+    _context: ExecutionContext,
+    _trace: string[],
     cost: number
   ): NodeResult {
     return {
@@ -245,16 +245,20 @@ export const reasoningLoopNode: NodeDefinition = {
     };
   },
 
-  get config(): ReasoningConfig {
-    return this._config;
-  }
-
-  private _config: ReasoningConfig = {
+  config: {
     model: 'gpt-4o',
     maxIterations: 8,
     costCeiling: 0.50,
     loopDetector: { maxSameToolCalls: 3 },
     tools: [],
     deadlineMs: 12000
-  };
+  },
+
+  validate(config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
+    const errors: Array<{ field: string; message: string }> = [];
+    if (!config['model']) {
+      errors.push({ field: 'model', message: 'LLM model is required' });
+    }
+    return { valid: errors.length === 0, errors };
+  },
 };

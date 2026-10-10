@@ -7,9 +7,9 @@
  * - Condition
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
-interface WaitConfig {
+export interface WaitConfig {
   type: 'duration' | 'event' | 'condition';
   duration?: number; // ms
   event?: string;
@@ -56,8 +56,7 @@ export const waitNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as WaitConfig;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // 1. Wait based on type
@@ -74,17 +73,13 @@ export const waitNode: NodeDefinition = {
     };
   },
 
-  validate(config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
+  validate(_config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
     const errors: Array<{ field: string; message: string }> = [];
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): WaitConfig {
-    return this._config;
-  }
-
-  private _config: WaitConfig = {
+  config: {
     type: 'duration',
     duration: 1000
-  };
+  },
 };

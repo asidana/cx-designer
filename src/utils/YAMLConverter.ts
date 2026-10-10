@@ -4,7 +4,7 @@
  * YAML is more readable than JSON for version control and manual editing.
  */
 
-import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
+import { FlowGraph } from '../types/node';
 
 /**
  * Convert flow to YAML string

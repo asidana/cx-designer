@@ -5,7 +5,7 @@
  * optional rich cards / quick replies for webchat widgets to render.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface ChatCard {
   title: string;
@@ -63,8 +63,8 @@ export const chatOutputNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as ChatOutputConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as ChatOutputConfig;
     // Prefer turn text; fall back to upstream display text (e.g. crawler summary).
     const text = String(
       context.variables.get('input') || context.variables.get('displayText') || ''
@@ -98,9 +98,5 @@ export const chatOutputNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): ChatOutputConfig {
-    return this._config;
-  }
-
-  private _config: ChatOutputConfig = { markdown: true, citations: true, cards: [], quickReplies: [] };
+  config: { markdown: true, citations: true, cards: [], quickReplies: [] },
 };

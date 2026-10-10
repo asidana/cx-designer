@@ -6,7 +6,7 @@
  * enforced by infrastructure, not by model behavior.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 import { Rule, evaluateRules } from '../../sentinel/ruleEngine';
 
 export const businessRuleNode: NodeDefinition = {
@@ -42,8 +42,8 @@ export const businessRuleNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const rules = (this.config.rules as Rule[]) || [];
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const mergedRules = { ...this.config, ...instanceConfig }; const rules = (mergedRules.rules as Rule[]) || [];
     const state: Record<string, unknown> = {};
     context.variables.forEach((value, key) => {
       state[key] = value;
@@ -87,9 +87,5 @@ export const businessRuleNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): { rules: Rule[] } {
-    return this._config;
-  }
-
-  private _config: { rules: Rule[] } = { rules: [] };
+  config: { rules: [] },
 };

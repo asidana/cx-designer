@@ -9,7 +9,7 @@
  *    if the balance is over $100."
  */
 
-import { FlowGraph, FlowNode, FlowEdge, NodeType } from '../types/node';
+import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
 import type { ChannelId } from '../channels/types';
 
 export interface FlowGenerationPrompt {
@@ -128,7 +128,7 @@ export class FlowGenerator {
     intents: string[],
     slots: string[],
     actions: string[],
-    channel: string
+    _channel: string
   ): FlowGraph {
     const nodes: FlowNode[] = [];
     const edges: FlowEdge[] = [];

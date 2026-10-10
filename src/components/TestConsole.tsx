@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Node, Edge } from 'reactflow';
 import { FlowEngine, TraceEventType } from '../engine/flowEngine';
-import { FlowGraph, FlowNode, FlowEdge, AuditEvent } from '../types/node';
+import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
 import {
   listTestCases,
   saveTestCase,
@@ -60,12 +60,12 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
   onSelectNode,
   onClearTrace
 }) => {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, _setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState('');
+  const [_transcript, setTranscript] = useState('');
   const [traceEvents, setTraceEvents] = useState<TraceEvent[]>([]);
   const [metrics, setMetrics] = useState<Metrics>({ totalLatencyMs: 0, tokenCount: 0, cost: 0, guardrailViolations: 0 });
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [_selectedNode, _setSelectedNode] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [startNodeId, setStartNodeId] = useState<string>('');
   const [injectedState, setInjectedState] = useState<string>(

@@ -12,21 +12,10 @@ interface MonitoringDashboardProps {
 
 export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ flowId, onClose }) => {
   const [healthReport, setHealthReport] = useState<ReturnType<typeof monitoringService.generateHealthReport> | null>(null);
-  const [metrics, setMetrics] = useState<Array<{ name: string; value: number; timestamp: number }>>([]);
 
   useEffect(() => {
     const update = () => {
       setHealthReport(monitoringService.generateHealthReport(flowId));
-      
-      // Get recent metrics
-      const now = Date.now();
-      const oneHourAgo = now - 3600000;
-      const latencyMetrics = monitoringService.getMetrics('flow_latency_ms', oneHourAgo, now);
-      setMetrics(latencyMetrics.map((m) => ({
-        name: 'Latency',
-        value: m.value,
-        timestamp: m.timestamp
-      })));
     };
 
     update();

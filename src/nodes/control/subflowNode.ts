@@ -5,9 +5,9 @@
  * Enables modular, reusable flow components.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
-interface SubflowConfig {
+export interface SubflowConfig {
   subflowId: string;
   inputMapping: Record<string, string>;
   outputMapping: Record<string, string>;
@@ -46,8 +46,7 @@ export const subflowNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as SubflowConfig;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // 1. Load the sub-flow definition
@@ -76,13 +75,9 @@ export const subflowNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): SubflowConfig {
-    return this._config;
-  }
-
-  private _config: SubflowConfig = {
+  config: {
     subflowId: '',
     inputMapping: {},
     outputMapping: {}
-  };
+  },
 };

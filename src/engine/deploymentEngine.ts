@@ -10,7 +10,7 @@
  * - Multi-region support
  */
 
-import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
+import { FlowGraph } from '../types/node';
 import { EvalEngine, EvalSuite, EvalReport } from './evalEngine';
 
 export interface Build {
@@ -215,7 +215,7 @@ export class DeploymentEngine {
   /**
    * Simulate deployment (mock)
    */
-  private async simulateDeployment(deployment: Deployment): Promise<void> {
+  private async simulateDeployment(_deployment: Deployment): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 2000));
   }
 

@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { getKey, setKey, maskedKey, KeyProvider } from '../voice/keyVault';
 import { PROBES, ProbeResult } from '../voice/liveAdapters';
 
-interface Settings {
+export interface Settings {
   theme: 'dark' | 'light';
   autoSave: boolean;
   autoSaveInterval: number;
@@ -17,18 +17,6 @@ interface Settings {
   notifications: boolean;
   sounds: boolean;
 }
-
-const defaultSettings: Settings = {
-  theme: 'dark',
-  autoSave: true,
-  autoSaveInterval: 5000,
-  defaultModel: 'gpt-4o',
-  defaultSTT: 'deepgram',
-  defaultTTS: 'elevenlabs',
-  language: 'en',
-  notifications: true,
-  sounds: true
-};
 
 interface SettingsPanelProps {
   settings: Settings;

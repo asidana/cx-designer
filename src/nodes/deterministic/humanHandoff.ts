@@ -7,7 +7,7 @@
  * triggers follow Botpress terms: topic, sentiment, tier, request.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface HandoffConfig {
   queue: string;
@@ -116,8 +116,8 @@ export const humanHandoffNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as HandoffConfig;
+  async execute(_context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as HandoffConfig;
 
     // In real implementation:
     // 1. Generate context summary
@@ -142,16 +142,12 @@ export const humanHandoffNode: NodeDefinition = {
     };
   },
 
-  validate(config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
+  validate(_config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
     const errors: Array<{ field: string; message: string }> = [];
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): HandoffConfig {
-    return this._config;
-  }
-
-  private _config: HandoffConfig = {
+  config: {
     queue: 'general',
     priority: 'medium',
     mode: 'cold',
@@ -161,5 +157,5 @@ export const humanHandoffNode: NodeDefinition = {
     transcriptIncluded: true,
     callbackEnabled: false,
     message: 'Connecting you to a human agent. Please hold...'
-  };
+  },
 };

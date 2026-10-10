@@ -7,7 +7,7 @@
  * agent node itself only carries business logic.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 import { CcaasTarget, StreamTransport, AudioCodec } from '../../streamlink/types';
 
 interface StreamLinkNodeConfig {
@@ -104,8 +104,8 @@ export const streamlinkNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as StreamLinkNodeConfig;
+  async execute(_context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as StreamLinkNodeConfig;
 
     // In production this binds via the StreamLink service; here we record
     // the binding intent into session state for the runtime to pick up.
@@ -156,11 +156,7 @@ export const streamlinkNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): StreamLinkNodeConfig {
-    return this._config;
-  }
-
-  private _config: StreamLinkNodeConfig = {
+  config: {
     transport: 'sip',
     ccaas: 'custom',
     endpointId: '',
@@ -168,5 +164,5 @@ export const streamlinkNode: NodeDefinition = {
     dtmfMode: 'rfc2833',
     recordCalls: true,
     pciPauseOnPayment: true
-  };
+  },
 };

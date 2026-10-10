@@ -5,7 +5,7 @@
  * and handles barge-in (user interrupting the agent).
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 export const voiceInputNode: NodeDefinition = {
   type: 'voice.input',
@@ -130,8 +130,8 @@ export const voiceInputNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig };
     
     // In real implementation:
     // 1. Initialize STT stream with provider config

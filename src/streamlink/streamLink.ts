@@ -15,7 +15,6 @@
 import { Sentinel } from '../sentinel/sentinel';
 import {
   AudioFrame,
-  CallDirection,
   CcaasTarget,
   DtmfEvent,
   StreamCall,

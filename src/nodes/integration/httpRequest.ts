@@ -8,9 +8,9 @@
  * - Response mapping
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
-interface HttpConfig {
+export interface HttpConfig {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
@@ -92,8 +92,7 @@ export const httpRequestNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as HttpConfig;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // 1. Substitute variables in URL/body
@@ -123,13 +122,9 @@ export const httpRequestNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): HttpConfig {
-    return this._config;
-  }
-
-  private _config: HttpConfig = {
+  config: {
     url: '',
     method: 'GET',
     timeout: 5000
-  };
+  },
 };

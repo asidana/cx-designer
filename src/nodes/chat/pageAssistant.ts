@@ -8,7 +8,7 @@
  * when allowed, with approval for anything mutating.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface PageAssistantConfig {
   scope: 'page' | 'site';
@@ -79,8 +79,8 @@ export const pageAssistantNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as PageAssistantConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as PageAssistantConfig;
     const question = String(context.variables.get('input') || '');
     const page = (context.variables.get('pageContext') as PageContext) || {};
 
@@ -120,14 +120,10 @@ export const pageAssistantNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): PageAssistantConfig {
-    return this._config;
-  }
-
-  private _config: PageAssistantConfig = {
+  config: {
     scope: 'page',
     allowSummarize: true,
     allowFill: false,
     requireApproval: true
-  };
+  },
 };

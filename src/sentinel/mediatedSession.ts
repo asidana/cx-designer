@@ -44,7 +44,6 @@ export interface S2STransport {
 
 export class MediatedVoiceSession {
   private audioBuffer: ArrayBuffer[] = [];
-  private pendingTranscript = '';
 
   constructor(
     private transport: S2STransport,
@@ -78,7 +77,6 @@ export class MediatedVoiceSession {
    * Cleared text flows to UI/playback; blocked text drops its audio.
    */
   agentTranscript(text: string, isFinal: boolean): void {
-    this.pendingTranscript = text;
     const gate = this.sentinel.check({
       phase: 'post_llm',
       content: text,
@@ -111,7 +109,6 @@ export class MediatedVoiceSession {
 
   private dropBufferedAudio(): void {
     this.audioBuffer = [];
-    this.pendingTranscript = '';
   }
 
   get holdingPhrase(): string {

@@ -6,7 +6,7 @@
  * concern (see chatRuntime) and need no configuration here.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface ChatInputConfig {
   quickReplies: string[];
@@ -34,8 +34,8 @@ export const chatInputNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as ChatInputConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as ChatInputConfig;
     const text = String(context.variables.get('input') || '');
 
     return {
@@ -58,9 +58,5 @@ export const chatInputNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): ChatInputConfig {
-    return this._config;
-  }
-
-  private _config: ChatInputConfig = { quickReplies: [] };
+  config: { quickReplies: [] },
 };

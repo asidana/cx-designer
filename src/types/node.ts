@@ -23,6 +23,11 @@ export type NodeType =
   | 'agentic.rag'
   | 'agentic.memory'
   | 'agentic.langgraph'
+  | 'agentic.langgraph.llm'
+  | 'agentic.langgraph.tool'
+  | 'agentic.langgraph.retriever'
+  | 'agentic.langgraph.memory'
+  | 'agentic.langgraph.conditional'
   | 'agentic.strands'
   | 'agentic.adk'
   | 'agentic.langchain'
@@ -198,6 +203,11 @@ export interface ToolDefinition {
   config: Record<string, unknown>;
 }
 
+export interface ToolCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
 // Node Definition (for custom node registration)
 
 export interface NodeDefinition {
@@ -210,7 +220,14 @@ export interface NodeDefinition {
   inputs: HandleDefinition[];
   outputs: HandleDefinition[];
   configSchema: ConfigSchemaField[];
-  execute: (context: ExecutionContext) => Promise<NodeResult>;
+  /** Default config values for this node type (overridden per instance). */
+  config?: NodeConfig;
+  /**
+   * Execute with the effective config (defaults merged with the
+   * instance's data.config by the engine). Never read per-instance
+   * values from the definition object.
+   */
+  execute: (context: ExecutionContext, config: NodeConfig) => Promise<NodeResult>;
   validate: (config: NodeConfig) => ValidationResult;
 }
 

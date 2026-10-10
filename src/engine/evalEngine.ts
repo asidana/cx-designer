@@ -6,7 +6,7 @@
  * Layer 3: Final Outcome (task success, UX quality, safety)
  */
 
-import { FlowGraph, FlowNode, FlowEdge, NodeResult } from '../types/node';
+import { FlowGraph, NodeResult } from '../types/node';
 import { FlowEngine } from './flowEngine';
 
 export interface TestCase {
@@ -180,7 +180,7 @@ export class EvalEngine {
   private runCodeAssertion(
     config: Record<string, unknown>,
     result: NodeResult,
-    testCase: TestCase
+    _testCase: TestCase
   ): { passed: boolean; violations: string[] } {
     const violations: string[] = [];
     const assertion = config['assertion'] as string;
@@ -210,8 +210,8 @@ export class EvalEngine {
    */
   private async runLLMJudge(
     config: Record<string, unknown>,
-    result: NodeResult,
-    testCase: TestCase
+    _result: NodeResult,
+    _testCase: TestCase
   ): Promise<{ passed: boolean; violations: string[] }> {
     const violations: string[] = [];
     const criteria = config['criteria'] as string;

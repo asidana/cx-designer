@@ -5,7 +5,7 @@
  * interruption handling, and multi-language support.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 export const voiceOutputNode: NodeDefinition = {
   type: 'voice.output',
@@ -18,7 +18,9 @@ export const voiceOutputNode: NodeDefinition = {
     { id: 'text', type: 'text', label: 'Text to Speak', required: true }
   ],
   outputs: [
-    { id: 'audio', type: 'audio', label: 'Audio Output' }
+    { id: 'audio', type: 'audio', label: 'Audio Output' },
+    { id: 'response', type: 'text', label: 'Spoken Text' },
+    { id: 'cost', type: 'number', label: 'TTS Cost' }
   ],
   configSchema: [
     {
@@ -99,7 +101,7 @@ export const voiceOutputNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
+  async execute(context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     const text = context.variables.get('input') as string || '';
     
     // In real implementation:
@@ -111,7 +113,9 @@ export const voiceOutputNode: NodeDefinition = {
     return {
       outputs: {
         audio: null, // Would be AudioChunk
-        text
+        text,
+        response: text,
+        cost: 0
       },
       nextNodes: [],
       shouldSpeak: true,

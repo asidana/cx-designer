@@ -5,7 +5,7 @@
  * Key feature: 96% token reduction via intent-based tool wrapping.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface StrandsTool {
   name: string;
@@ -60,8 +60,8 @@ export class StrandsAdapter {
    * Execute a Strands agent (runtime)
    */
   static async execute(
-    config: StrandsConfig,
-    context: ExecutionContext
+    _config: StrandsConfig,
+    _context: ExecutionContext
   ): Promise<NodeResult> {
     // In real implementation:
     // 1. Create Strands agent with intent-based tools
@@ -134,8 +134,7 @@ export const strandsNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as StrandsConfig;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // 1. Create Strands agent with intent-based tools
@@ -164,13 +163,9 @@ export const strandsNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): StrandsConfig {
-    return this._config;
-  }
-
-  private _config: StrandsConfig = {
+  config: {
     model: 'bedrock.claude-sonnet-4-20250514',
     systemPrompt: '',
     tools: []
-  };
+  },
 };

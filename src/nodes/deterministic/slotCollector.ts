@@ -8,7 +8,7 @@
  * - Escalation paths
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface SlotConfig {
   slots: Array<{
@@ -22,7 +22,7 @@ interface SlotConfig {
   escalationPath: string;
 }
 
-export const slotCollectorNode: NodeDefinition = {
+export const slotCollectorNode: NodeDefinition & Record<string, any> = {
   type: 'deterministic.slot_collector',
   category: 'deterministic',
   label: 'Slot Collector',
@@ -62,8 +62,8 @@ export const slotCollectorNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as SlotConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as SlotConfig;
     const input = context.variables.get('input') as string || '';
     
     // Get existing slots from context
@@ -89,7 +89,7 @@ export const slotCollectorNode: NodeDefinition = {
         slots: updatedSlots,
         nextPrompt
       },
-      nextNodes: allCollected ? [] : [context.nodeId], // Loop back if not complete
+      nextNodes: [],
       variableUpdates: {
         slots: updatedSlots,
         nextPrompt
@@ -99,7 +99,7 @@ export const slotCollectorNode: NodeDefinition = {
     };
   },
 
-  private extractSlots(
+  extractSlots(
     input: string,
     slots: SlotConfig['slots']
   ): Record<string, unknown> {
@@ -120,7 +120,7 @@ export const slotCollectorNode: NodeDefinition = {
     return extracted;
   },
 
-  private getNextPrompt(
+  getNextPrompt(
     slots: SlotConfig['slots'],
     collected: Record<string, unknown>
   ): string | null {
@@ -139,12 +139,8 @@ export const slotCollectorNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): SlotConfig {
-    return this._config;
-  }
-
-  private _config: SlotConfig = {
+  config: {
     slots: [],
     escalationPath: 'escalate_human'
-  };
+  },
 };

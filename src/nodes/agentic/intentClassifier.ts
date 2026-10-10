@@ -5,7 +5,7 @@
  * Routes to different branches based on detected intent.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface IntentConfig {
   model: string;
@@ -18,7 +18,7 @@ interface IntentConfig {
   fallback: string;
 }
 
-export const intentClassifierNode: NodeDefinition = {
+export const intentClassifierNode: NodeDefinition & Record<string, any> = {
   type: 'agentic.intent_classifier',
   category: 'agentic',
   label: 'Intent Classifier',
@@ -82,9 +82,8 @@ export const intentClassifierNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as IntentConfig;
-    const input = context.variables.get('input') as string || '';
+  async execute(_context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as IntentConfig;
 
     // In real implementation:
     // 1. Call LLM with system prompt + user input
@@ -116,7 +115,7 @@ export const intentClassifierNode: NodeDefinition = {
     };
   },
 
-  private determineNextNodes(intent: string, config: IntentConfig): string[] {
+  determineNextNodes(_intent: string, _config: IntentConfig): string[] {
     // In real implementation, this would map to actual edge targets
     // based on the intent name
     return [];
@@ -137,15 +136,11 @@ export const intentClassifierNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): IntentConfig {
-    return this._config;
-  }
-
-  private _config: IntentConfig = {
+  config: {
     model: 'gpt-4o-mini',
     systemPrompt: '',
     intents: [],
     confidenceThreshold: 0.85,
     fallback: 'escalate_human'
-  };
+  },
 };

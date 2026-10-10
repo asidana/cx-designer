@@ -59,7 +59,7 @@ describe('ChannelRouter', () => {
   it('rejects invalid handler output', async () => {
     const router = new ChannelRouter();
     router.register('chat', async () => [{ ...envelope(), parts: [] }]);
-    await expect(router.inbound(envelope())).rejects.toThrow('invalid envelope');
+    await expect(router.inbound(envelope({ channel: 'chat' }))).rejects.toThrow('invalid envelope');
   });
 });
 

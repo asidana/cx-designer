@@ -7,8 +7,9 @@
  * boundary visible in the flow itself.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
-import { Sentinel, SentinelPhase } from '../../sentinel/sentinel';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
+import { Sentinel } from '../../sentinel/sentinel';
+import { SentinelPhase } from '../../sentinel/ruleEngine';
 import { Rule } from '../../sentinel/ruleEngine';
 
 interface SentinelNodeConfig {
@@ -86,8 +87,8 @@ export const sentinelNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as SentinelNodeConfig;
+  async execute(context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as SentinelNodeConfig;
     const input = String(context.variables.get('input') || '');
     const session: Record<string, unknown> = {};
     context.variables.forEach((value, key) => {
@@ -139,15 +140,11 @@ export const sentinelNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): SentinelNodeConfig {
-    return this._config;
-  }
-
-  private _config: SentinelNodeConfig = {
+  config: {
     phase: 'pre_llm',
     rules: [],
     piiRedaction: true,
     injectionScan: true,
     failClosed: true
-  };
+  },
 };

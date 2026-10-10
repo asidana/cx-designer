@@ -52,8 +52,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
       flowId,
       userId: currentUser.id,
       userName: currentUser.name,
-      content: newComment,
-      resolved: false
+      content: newComment
     });
 
     setNewComment('');

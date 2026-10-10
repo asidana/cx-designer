@@ -9,7 +9,7 @@
  * - Comments and annotations
  */
 
-import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
+import { FlowGraph } from '../types/node';
 
 export interface User {
   id: string;
@@ -44,13 +44,12 @@ export interface CollaborationEvent {
 export class CollaborationManager {
   private users: Map<string, User> = new Map();
   private comments: Map<string, Comment[]> = new Map();
-  private flow: FlowGraph | null = null;
   private listeners: Map<string, (event: CollaborationEvent) => void> = new Map();
 
   /**
    * Join a flow session
    */
-  joinFlow(flowId: string, user: User): void {
+  joinFlow(_flowId: string, user: User): void {
     user.isOnline = true;
     user.lastActive = Date.now();
     this.users.set(user.id, user);
@@ -66,7 +65,7 @@ export class CollaborationManager {
   /**
    * Leave a flow session
    */
-  leaveFlow(flowId: string, userId: string): void {
+  leaveFlow(_flowId: string, userId: string): void {
     const user = this.users.get(userId);
     if (user) {
       user.isOnline = false;
@@ -121,7 +120,6 @@ export class CollaborationManager {
    * Update flow (with conflict resolution)
    */
   updateFlow(userId: string, flow: FlowGraph): void {
-    this.flow = flow;
 
     this.emit({
       type: 'flow_updated',

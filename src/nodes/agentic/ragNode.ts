@@ -5,9 +5,9 @@
  * to ground the agent's responses.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
-interface RAGConfig {
+export interface RAGConfig {
   knowledgeBase: string;
   topK: number;
   scoreThreshold: number;
@@ -77,9 +77,7 @@ export const ragNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as RAGConfig;
-    const query = context.variables.get('input') as string || '';
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
 
     // In real implementation:
     // 1. Embed the query
@@ -115,15 +113,11 @@ export const ragNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): RAGConfig {
-    return this._config;
-  }
-
-  private _config: RAGConfig = {
+  config: {
     knowledgeBase: 'support_kb',
     topK: 4,
     scoreThreshold: 0.7,
     embeddingModel: 'text-embedding-3-small',
     reranker: true
-  };
+  },
 };

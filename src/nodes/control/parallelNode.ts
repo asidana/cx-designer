@@ -4,7 +4,7 @@
  * Runs multiple branches in parallel and merges results.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface ParallelConfig {
   branches: Array<{
@@ -48,8 +48,8 @@ export const parallelNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as ParallelConfig;
+  async execute(_context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as ParallelConfig;
     
     // In real implementation:
     // 1. Execute all branches in parallel
@@ -67,17 +67,13 @@ export const parallelNode: NodeDefinition = {
     };
   },
 
-  validate(config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
+  validate(_config: Record<string, unknown>): { valid: boolean; errors: Array<{ field: string; message: string }> } {
     const errors: Array<{ field: string; message: string }> = [];
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): ParallelConfig {
-    return this._config;
-  }
-
-  private _config: ParallelConfig = {
+  config: {
     branches: [],
     mergeStrategy: 'all'
-  };
+  },
 };

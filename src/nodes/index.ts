@@ -6,6 +6,7 @@
  */
 
 import { nodeRegistry } from './registry';
+export { nodeRegistry } from './registry';
 import { voiceInputNode } from './voice/voiceInput';
 import { voiceOutputNode } from './voice/voiceOutput';
 import { chatInputNode } from './chat/chatInput';

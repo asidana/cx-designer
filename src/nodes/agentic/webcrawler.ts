@@ -9,7 +9,7 @@
  * deterministic mock counts so sync → ask flows run end to end.
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig } from '../../types/node';
 
 interface CrawlerConfig {
   provider: 'firecrawl' | 'jina-reader' | 'sitemap';
@@ -132,8 +132,8 @@ export const webcrawlerNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config as unknown as CrawlerConfig;
+  async execute(_context: ExecutionContext, instanceConfig: NodeConfig = {}): Promise<NodeResult> {
+    const config = { ...this.config, ...instanceConfig } as unknown as CrawlerConfig;
     const seeds = config.startUrls || [];
     const pageLimit = config.pageLimit ?? 50;
 
@@ -173,11 +173,7 @@ export const webcrawlerNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): CrawlerConfig {
-    return this._config;
-  }
-
-  private _config: CrawlerConfig = {
+  config: {
     provider: 'page-agent',
     startUrls: ['https://example.com/docs'],
     crawlSubpages: true,
@@ -190,5 +186,5 @@ export const webcrawlerNode: NodeDefinition = {
     chunkSize: 1000,
     chunkOverlap: 200,
     targetKnowledgeBase: 'website_kb'
-  };
+  },
 };

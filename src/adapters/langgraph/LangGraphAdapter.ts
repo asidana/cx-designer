@@ -8,7 +8,7 @@
  * 3. Executes LangGraph graphs inside the voice loop
  */
 
-import { NodeDefinition, ExecutionContext, NodeResult, FlowGraph, FlowNode, FlowEdge } from '../../types/node';
+import { NodeDefinition, ExecutionContext, NodeResult, NodeConfig, FlowGraph, FlowNode, FlowEdge } from '../../types/node';
 
 // LangGraph definition format (simplified)
 interface LangGraphNode {
@@ -149,7 +149,7 @@ if __name__ == "__main__":
   /**
    * Map LangGraph node types to canvas node types
    */
-  private static mapNodeType(type: LangGraphNode['type']): FlowNode['type'] {
+  static mapNodeType(type: LangGraphNode['type']): FlowNode['type'] {
     const mapping: Record<LangGraphNode['type'], FlowNode['type']> = {
       llm: 'agentic.langgraph.llm',
       tool: 'agentic.langgraph.tool',
@@ -167,7 +167,7 @@ if __name__ == "__main__":
    */
   static async execute(
     definition: LangGraphDefinition,
-    context: ExecutionContext,
+    _context: ExecutionContext,
     resumeCommand?: { type: 'approve' | 'reject'; payload?: unknown }
   ): Promise<NodeResult> {
     void definition;
@@ -239,8 +239,7 @@ export const langGraphNode: NodeDefinition = {
     }
   ],
 
-  async execute(context: ExecutionContext): Promise<NodeResult> {
-    const config = this.config;
+  async execute(_context: ExecutionContext, _instanceConfig: NodeConfig = {}): Promise<NodeResult> {
     
     // In real implementation:
     // 1. Parse graph definition
@@ -270,14 +269,10 @@ export const langGraphNode: NodeDefinition = {
     return { valid: errors.length === 0, errors };
   },
 
-  get config(): Record<string, unknown> {
-    return this._config;
-  }
-
-  private _config: Record<string, unknown> = {
+  config: {
     graphDefinition: null,
     recursionLimit: 25,
     checkpoint: true,
     interruptNodes: []
-  };
+  },
 };

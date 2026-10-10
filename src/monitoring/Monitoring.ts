@@ -8,12 +8,21 @@
  * - PagerDuty for alerting
  */
 
-import { FlowGraph, FlowNode, AuditEvent } from '../types/node';
-
 export interface MetricPoint {
   timestamp: number;
   value: number;
   labels: Record<string, string>;
+}
+
+export interface AggregatedMetrics {
+  count: number;
+  sum: number;
+  avg: number;
+  min: number;
+  max: number;
+  p50: number;
+  p95: number;
+  p99: number;
 }
 
 export interface Alert {
@@ -109,16 +118,10 @@ export class MonitoringService {
   /**
    * Get aggregated metrics
    */
-  getAggregatedMetrics(name: string, startTime: number, endTime: number): {
-    count: number;
-    sum: number;
-    avg: number;
-    min: number;
-    max: number;
-    p50: number;
-    p95: number;
-    p99: number;
-  } | null {
+  /**
+   * Get aggregated metrics
+   */
+  getAggregatedMetrics(name: string, startTime: number, endTime: number): AggregatedMetrics | null {
     const points = this.getMetrics(name, startTime, endTime);
     if (points.length === 0) return null;
 
@@ -208,9 +211,9 @@ export class MonitoringService {
   /**
    * Generate a health report
    */
-  generateHealthReport(flowId: string): {
+  generateHealthReport(_flowId: string): {
     status: 'healthy' | 'degraded' | 'unhealthy';
-    metrics: Record<string, unknown>;
+    metrics: Record<string, AggregatedMetrics | null>;
     alerts: Alert[];
     recommendations: string[];
   } {
