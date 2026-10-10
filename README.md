@@ -164,6 +164,7 @@ Full reference: [docs/API.md](docs/API.md).
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Environment variable reference |
 | [docs/TESTING.md](docs/TESTING.md) | Testing guide (frontend, backend, CI, budgets) |
 | [docs/SIMULATION.md](docs/SIMULATION.md) | Mock multi-turn call simulations on IndexedDB |
+| [docs/EXPERIENCE_BOTS.md](docs/EXPERIENCE_BOTS.md) | Live S2S experience bots: keys, probes, mock→live path |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and fixes |
 
 ## Architecture

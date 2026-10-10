@@ -3,6 +3,8 @@
  */
 
 import React, { useState } from 'react';
+import { getKey, setKey, maskedKey, KeyProvider } from '../voice/keyVault';
+import { PROBES, ProbeResult } from '../voice/liveAdapters';
 
 interface Settings {
   theme: 'dark' | 'light';
@@ -146,6 +148,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onChange
         />
       </SettingGroup>
 
+      {/* API Keys (live experience bots; mocks stay active until set) */}
+      <SettingGroup label="API Keys">
+        <p style={{ fontSize: 11, color: '#666', margin: '0 0 8px' }}>
+          Stored only in this browser. Until keys are set, voice runs on mocks.
+        </p>
+        <ApiKeyRow provider="openai" label="OpenAI (GPT Live)" />
+        <ApiKeyRow provider="xai" label="xAI (Grok Voice)" />
+        <ApiKeyRow provider="google" label="Google (Gemini Live)" />
+      </SettingGroup>
+
       {/* Notifications */}
       <SettingGroup label="Notifications">
         <SettingToggle
@@ -235,3 +247,128 @@ const SettingSelect: React.FC<{
     </select>
   </div>
 );
+
+const ApiKeyRow: React.FC<{ provider: KeyProvider; label: string }> = ({
+  provider,
+  label
+}) => {
+  const [draft, setDraft] = useState('');
+  const [status, setStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
+  const [detail, setDetail] = useState<string>('');
+  const [stored, setStored] = useState(() => getKey(provider) !== null);
+
+  const save = () => {
+    if (!draft.trim()) return;
+    setKey(provider, draft);
+    setDraft('');
+    setStored(true);
+    setStatus('idle');
+    setDetail('');
+  };
+
+  const clear = () => {
+    setKey(provider, '');
+    setStored(false);
+    setStatus('idle');
+    setDetail('');
+  };
+
+  const test = async () => {
+    const probe = PROBES[provider as keyof typeof PROBES];
+    if (!probe) {
+      setStatus('fail');
+      setDetail('No live probe for this provider yet.');
+      return;
+    }
+    setStatus('testing');
+    const result: ProbeResult = await probe();
+    setStatus(result.ok ? 'ok' : 'fail');
+    setDetail(
+      result.ok
+        ? `Connected in ${result.latencyMs}ms${result.models?.length ? ` · e.g. ${result.models.slice(0, 2).join(', ')}` : ''}`
+        : result.error || 'Probe failed.'
+    );
+  };
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
+        {label}{' '}
+        <span style={{ color: stored ? '#10b981' : '#666' }}>
+          {stored ? `● ${maskedKey(provider)}` : '○ not set (mocks active)'}
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input
+          type="password"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Paste key…"
+          spellCheck={false}
+          style={{
+            flex: 1,
+            padding: '8px 12px',
+            borderRadius: 4,
+            border: '1px solid #333',
+            background: '#1a1a2e',
+            color: 'white',
+            fontSize: 13
+          }}
+        />
+        <button
+          onClick={save}
+          disabled={!draft.trim()}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 4,
+            border: 'none',
+            background: draft.trim() ? '#10b981' : '#333',
+            color: 'white',
+            cursor: draft.trim() ? 'pointer' : 'not-allowed',
+            fontSize: 12
+          }}
+        >
+          Save
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+        <button
+          onClick={test}
+          disabled={(!stored && !draft.trim()) || status === 'testing'}
+          style={{
+            padding: '6px 10px',
+            borderRadius: 4,
+            border: '1px solid #333',
+            background: 'transparent',
+            color: '#aaa',
+            cursor: 'pointer',
+            fontSize: 12
+          }}
+        >
+          {status === 'testing' ? 'Testing…' : 'Test connection'}
+        </button>
+        {stored && (
+          <button
+            onClick={clear}
+            style={{
+              padding: '6px 10px',
+              borderRadius: 4,
+              border: '1px solid #333',
+              background: 'transparent',
+              color: '#ef4444',
+              cursor: 'pointer',
+              fontSize: 12
+            }}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      {(status === 'ok' || status === 'fail') && detail && (
+        <div style={{ fontSize: 11, marginTop: 4, color: status === 'ok' ? '#10b981' : '#ef4444' }}>
+          {detail}
+        </div>
+      )}
+    </div>
+  );
+};
