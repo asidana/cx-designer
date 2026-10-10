@@ -163,6 +163,7 @@ Full reference: [docs/API.md](docs/API.md).
 | [docs/NODES.md](docs/NODES.md) | Node catalog — all built-in node types by category |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Environment variable reference |
 | [docs/TESTING.md](docs/TESTING.md) | Testing guide (frontend, backend, CI, budgets) |
+| [docs/SIMULATION.md](docs/SIMULATION.md) | Mock multi-turn call simulations on IndexedDB |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and fixes |
 
 ## Architecture

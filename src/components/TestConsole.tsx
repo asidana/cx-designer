@@ -20,6 +20,9 @@ import {
   SavedTestCase
 } from '../evals/TestCaseStore';
 import { WaterfallPanel, WaterfallSegment, LATENCY_BUDGET_MS } from './WaterfallPanel';
+import { seedMocks, Persona, Scenario } from '../mock/seed';
+import { idbGetAll } from '../mock/db';
+import { runSimulation } from '../mock/simulator';
 
 interface TestConsoleProps {
   nodes: Node[];
@@ -69,6 +72,29 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
   const [savedCases, setSavedCases] = useState<SavedTestCase[]>(() => listTestCases());
   const [activeTab, setActiveTab] = useState<'trace' | 'waterfall' | 'cases'>('trace');
   const [runSegments, setRunSegments] = useState<WaterfallSegment[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [personaId, setPersonaId] = useState<string>('');
+  const [scenarioId, setScenarioId] = useState<string>('');
+  const [simulating, setSimulating] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Seed mock personas/scenarios/tools into IndexedDB on first open
+  useEffect(() => {
+    seedMocks()
+      .then(() =>
+        Promise.all([idbGetAll<Persona>('personas'), idbGetAll<Scenario>('scenarios')])
+      )
+      .then(([p, s]) => {
+        setPersonas(p);
+        setScenarios(s);
+        if (p.length > 0) setPersonaId(current => current || p[0].id);
+        if (s.length > 0) setScenarioId(current => current || s[0].id);
+      })
+      .catch(() => {
+        // IndexedDB unavailable — manual testing still works
+      });
+  }, []);
   const [lastRun, setLastRun] = useState<{
     input: string;
     startNodeId: string | null;
@@ -262,6 +288,52 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
     addLog(`Loaded test case: "${c.name}"`);
   }, [addLog]);
 
+  // Run a multi-turn mock simulation (persona + scenario, IndexedDB-backed)
+  const handleSimulate = useCallback(async () => {
+    if (simulating || !engineRef.current) return;
+    const persona = personas.find(p => p.id === personaId);
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!persona || !scenario) {
+      addLog('Pick a persona and a scenario first.');
+      return;
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setSimulating(true);
+    setRunSegments([]);
+    onClearTrace();
+    addLog(`▶ Simulating "${scenario.name}" as ${persona.name}…`);
+    try {
+      const result = await runSimulation(engineRef.current, persona, scenario, {
+        startNodeId: startNodeId || undefined,
+        signal: controller.signal,
+        onTurn: (t) => {
+          addLog(
+            `Turn ${t.turn}: caller "${t.personaUtterance}"` +
+              (t.transcriptSent !== t.personaUtterance ? ` → STT "${t.transcriptSent}"` : '') +
+              `${t.bargedIn ? ' [barge-in]' : ''}`
+          );
+          addLog(`Turn ${t.turn}: agent "${t.agentResponse}" (${t.latencyMs}ms)`);
+          setMetrics(prev => ({
+            totalLatencyMs: prev.totalLatencyMs + t.latencyMs,
+            tokenCount: prev.tokenCount + 120,
+            cost: prev.cost + t.cost,
+            guardrailViolations: prev.guardrailViolations
+          }));
+        }
+      });
+      addLog(
+        `■ Simulation done: ${result.turns.length} turns, ` +
+          `${result.totalLatencyMs}ms, $${result.totalCost.toFixed(4)} (logged to IndexedDB)`
+      );
+    } catch (e) {
+      addLog(`Simulation stopped: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setSimulating(false);
+      abortRef.current = null;
+    }
+  }, [simulating, personas, scenarios, personaId, scenarioId, startNodeId, addLog, onClearTrace]);
+
   return (
     <div style={{
       position: 'absolute',
@@ -342,6 +414,82 @@ export const TestConsole: React.FC<TestConsoleProps> = ({
             Clear
           </button>
         </div>
+      </div>
+
+      {/* Simulation bar: persona + scenario + run */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          padding: '8px 16px',
+          borderBottom: '1px solid #333'
+        }}
+      >
+        <select
+          value={personaId}
+          onChange={(e) => setPersonaId(e.target.value)}
+          title="Caller persona: pace, interruptions, STT noise"
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            borderRadius: 4,
+            border: '1px solid #333',
+            background: '#1a1a2e',
+            color: 'white',
+            fontSize: 12
+          }}
+        >
+          <option value="">Caller persona…</option>
+          {personas.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.name} — {p.description}
+            </option>
+          ))}
+        </select>
+        <select
+          value={scenarioId}
+          onChange={(e) => setScenarioId(e.target.value)}
+          title="Multi-turn call script from IndexedDB mocks"
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            borderRadius: 4,
+            border: '1px solid #333',
+            background: '#1a1a2e',
+            color: 'white',
+            fontSize: 12
+          }}
+        >
+          <option value="">Scenario…</option>
+          {scenarios.map(s => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => {
+            if (simulating) {
+              abortRef.current?.abort();
+            } else {
+              void handleSimulate();
+            }
+          }}
+          title={simulating ? 'Stop simulation' : 'Run multi-turn mock simulation'}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 4,
+            border: 'none',
+            background: simulating ? '#ef4444' : '#10b981',
+            color: 'white',
+            cursor: 'pointer',
+            fontSize: 12,
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {simulating ? '⏹ Stop' : '▶ Simulate'}
+        </button>
       </div>
 
       {/* Content */}
