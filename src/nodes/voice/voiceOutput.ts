@@ -23,17 +23,20 @@ export const voiceOutputNode: NodeDefinition = {
   configSchema: [
     {
       name: 'tts.provider',
-      label: 'TTS Provider',
+      label: 'TTS Provider (cascaded mode)',
       type: 'select',
       options: [
         { label: 'ElevenLabs', value: 'elevenlabs' },
         { label: 'OpenAI TTS', value: 'openai' },
         { label: 'AWS Polly', value: 'aws' },
         { label: 'Google TTS', value: 'google' },
-        { label: 'Cartesia', value: 'cartesia' }
+        { label: 'Cartesia', value: 'cartesia' },
+        { label: 'Grok Voice (xAI)', value: 'grok' },
+        { label: 'NVIDIA Riva', value: 'nvidia-riva' }
       ],
       default: 'elevenlabs',
-      required: true
+      required: true,
+      description: 'In realtime-s2s mode the S2S model voices the reply; this applies to cascaded mode.'
     },
     {
       name: 'tts.voice',
@@ -55,7 +58,10 @@ export const voiceOutputNode: NodeDefinition = {
       options: [
         { label: 'Eleven Turbo v2', value: 'eleven_turbo_v2' },
         { label: 'Eleven Multilingual v2', value: 'eleven_multilingual_v2' },
-        { label: 'Eleven Flash v2', value: 'eleven_flash_v2' }
+        { label: 'Eleven Flash v2', value: 'eleven_flash_v2' },
+        { label: 'Grok Voice', value: 'grok-voice' },
+        { label: 'FastPitch (Riva)', value: 'fastpitch' },
+        { label: 'HiFi-GAN (Riva)', value: 'hifigan' }
       ],
       default: 'eleven_turbo_v2'
     },

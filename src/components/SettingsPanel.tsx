@@ -127,7 +127,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onChange
           options={[
             { label: 'Deepgram', value: 'deepgram' },
             { label: 'OpenAI Whisper', value: 'openai' },
-            { label: 'AWS Transcribe', value: 'aws' }
+            { label: 'AWS Transcribe', value: 'aws' },
+            { label: 'NVIDIA Riva', value: 'nvidia-riva' }
           ]}
           onChange={(v) => handleChange('defaultSTT', v)}
         />
@@ -137,7 +138,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onChange
           options={[
             { label: 'ElevenLabs', value: 'elevenlabs' },
             { label: 'OpenAI TTS', value: 'openai' },
-            { label: 'AWS Polly', value: 'aws' }
+            { label: 'AWS Polly', value: 'aws' },
+            { label: 'Grok Voice (xAI)', value: 'grok' },
+            { label: 'NVIDIA Riva', value: 'nvidia-riva' }
           ]}
           onChange={(v) => handleChange('defaultTTS', v)}
         />

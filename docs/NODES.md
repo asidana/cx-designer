@@ -6,8 +6,8 @@ All built-in node types, grouped by palette category. Node definitions live in `
 
 | Type | Label | Inputs → Outputs | Purpose |
 |------|-------|------------------|---------|
-| `voice.input` | Voice Input | — → `audio`, `transcript` | Capture caller audio: STT provider/model/language, Silero/WebRTC VAD, barge-in toggle |
-| `voice.output` | Voice Output | `text` → `audio` | Synthesize speech: TTS provider/voice/model, emotion-adaptive prosody, pace, interruptible flag |
+| `voice.input` | Voice Input | — → `audio`, `transcript` | Capture caller audio. Modes: `cascaded` (STT → LLM → TTS) or `realtime-s2s`. STT: Deepgram, Whisper, Transcribe, Google, NVIDIA Riva. S2S: GPT Live, Gemini Live, Grok Voice, NVIDIA Voice, Kyutai Moshi. Silero/WebRTC VAD, barge-in toggle |
+| `voice.output` | Voice Output | `text` → `audio` | Synthesize speech: ElevenLabs, OpenAI, Polly, Google, Cartesia, Grok Voice (xAI), NVIDIA Riva; emotion-adaptive prosody, pace, interruptible flag. In S2S mode the S2S model voices the reply |
 
 ## Agentic
 

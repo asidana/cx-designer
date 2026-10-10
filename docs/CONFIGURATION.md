@@ -24,6 +24,11 @@ All settings come from environment variables (see `.env.example`). Copy it to `.
 |----------|---------|---------|
 | `DEEPGRAM_API_KEY` | Deepgram STT (`voice.input`) | `...` |
 | `ELEVENLABS_API_KEY` | ElevenLabs TTS (`voice.output`) | `...` |
+| `CARTESIA_API_KEY` | Cartesia TTS (`voice.output`) | `...` |
+| `XAI_API_KEY` | Grok Voice S2S/TTS (`voice.input`, `voice.output`) | `xai-...` |
+| `GOOGLE_API_KEY` | Gemini Live S2S, Google STT/TTS | `...` |
+| `NVIDIA_API_KEY` | NVIDIA Riva STT/TTS, NVIDIA Voice S2S pipelines | `nvapi-...` |
+| `KYUTAI_API_KEY` | Kyutai Moshi S2S (hosted; omit when self-hosting) | `...` |
 
 ## Telephony
 
