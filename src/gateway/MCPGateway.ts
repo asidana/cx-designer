@@ -10,6 +10,7 @@
 
 import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
 import { FlowEngine } from '../engine/flowEngine';
+import { Sentinel } from '../sentinel/sentinel';
 
 export interface MCPTool {
   name: string;
@@ -34,6 +35,7 @@ export class MCPGateway {
   private engine: FlowEngine;
   private config: MCPServerConfig;
   private server: any;
+  private sentinel: Sentinel | null = null;
 
   constructor(flow: FlowGraph, config: Partial<MCPServerConfig> = {}) {
     this.flow = flow;
@@ -65,12 +67,37 @@ export class MCPGateway {
   }
 
   /**
+   * Attach a Sentinel: every tool call is gated pre_tool before execution.
+   * Without one, the gateway executes tools unchecked (not recommended).
+   */
+  setSentinel(sentinel: Sentinel | null): void {
+    this.sentinel = sentinel;
+  }
+
+  /**
    * Execute a tool (flow)
    */
   async executeTool(toolName: string, input: Record<string, unknown>): Promise<unknown> {
     const tool = this.config.tools.find(t => t.name === toolName);
     if (!tool) {
       throw new Error(`Tool not found: ${toolName}`);
+    }
+
+    // Sentinel pre_tool gate — before any side effect
+    if (this.sentinel) {
+      const gate = this.sentinel.check({
+        phase: 'pre_tool',
+        content: JSON.stringify(input),
+        session: { ...input },
+        toolName,
+        identity: `mcp_${toolName}`
+      });
+      if (!gate.allowed) {
+        throw new Error(
+          `Sentinel blocked "${toolName}" (${gate.action}): ` +
+            gate.violations.map(v => v.message).join('; ')
+        );
+      }
     }
 
     // Execute the flow

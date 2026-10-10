@@ -35,6 +35,7 @@ export type NodeType =
   | 'control.subflow'
   // Governance
   | 'governance.guardrail'
+  | 'governance.sentinel'
   | 'governance.eval_checkpoint'
   | 'governance.audit_logger'
   | 'governance.cost_tracker'

@@ -85,13 +85,16 @@ export function lintFlow(nodes: Node[], edges: PreflightPanelProps['edges']): Li
     });
   }
 
-  // Missing guardrails
-  const hasGuardrail = nodes.some(n => getType(n) === 'governance.guardrail');
+  // Missing guardrails (guardrail node or sentinel gate)
+  const hasGuardrail = nodes.some(n => {
+    const t = getType(n);
+    return t === 'governance.guardrail' || t === 'governance.sentinel';
+  });
   if (hasVoiceOrAgentic && !hasGuardrail) {
     issues.push({
       type: 'warning',
-      message: 'No guardrail node — PII and injection pass through unchecked',
-      fix: 'Add a Guardrail node before LLM and tool calls.'
+      message: 'No guardrail or Sentinel gate — PII and injection pass through unchecked',
+      fix: 'Add a Guardrail or Sentinel node before LLM and tool calls.'
     });
   }
 

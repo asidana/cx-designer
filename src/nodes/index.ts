@@ -13,8 +13,10 @@ import { reasoningLoopNode } from './agentic/reasoningLoop';
 import { ragNode } from './agentic/ragNode';
 import { memoryNode } from './agentic/memoryNode';
 import { slotCollectorNode } from './deterministic/slotCollector';
+import { businessRuleNode } from './deterministic/businessRule';
 import { humanHandoffNode } from './deterministic/humanHandoff';
 import { guardrailNode } from './governance/guardrail';
+import { sentinelNode } from './governance/sentinel';
 import { httpRequestNode } from './integration/httpRequest';
 import { conditionalRouterNode } from './control/conditionalRouter';
 import { telephonyNode } from './integration/telephonyNode';
@@ -38,6 +40,7 @@ export function registerBuiltInNodes(): void {
   
   // Deterministic Layer
   nodeRegistry.register(slotCollectorNode);
+  nodeRegistry.register(businessRuleNode);
   nodeRegistry.register(humanHandoffNode);
   
   // Control Flow
@@ -48,6 +51,7 @@ export function registerBuiltInNodes(): void {
   
   // Governance
   nodeRegistry.register(guardrailNode);
+  nodeRegistry.register(sentinelNode);
   
   // Integration
   nodeRegistry.register(httpRequestNode);

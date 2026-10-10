@@ -25,6 +25,7 @@ Framework adapters (`agentic.langgraph`, `agentic.strands`, `agentic.adk`) are r
 | Type | Label | Inputs → Outputs | Purpose |
 |------|-------|------------------|---------|
 | `deterministic.slot_collector` | Slot Collector | `input` → `complete`, `slots` | Typed slot collection (string/number/date/email/phone/alphanumeric/currency/boolean) with regex validation, retries, and escalation path |
+| `deterministic.business_rule` | Business Rule | `input` → `allowed`, `action`, `violations` | Deterministic JSON policy rules evaluated against session state; the canvas face of the Sentinel rule engine |
 | `deterministic.human_handoff` | Human Handoff | `input` → `handoffId`, `queue`, `estimatedWait` | Escalate with queue, priority, context summary, transcript, and callback options |
 
 ## Control Flow
@@ -41,8 +42,10 @@ Framework adapters (`agentic.langgraph`, `agentic.strands`, `agentic.adk`) are r
 | Type | Label | Inputs → Outputs | Purpose |
 |------|-------|------------------|---------|
 | `governance.guardrail` | Guardrail | `input` → `allowed`, `redacted`, `violations` | Built-in PII redaction + toxicity filter, or a custom guardrail app (`block` \| `warn` \| `redact` \| `escalate`) |
+| `governance.sentinel` | Sentinel | `input` → `allowed`, `action`, `content`, `violations` | Full agent gateway at a phase (`pre_llm`/`post_llm`/`pre_tool`/`post_tool`): rate limit → rule engine → PII redaction → injection scan |
 
 See `src/guardrails/GuardrailSDK.ts` for the custom guardrail app contract.
+See `docs/SENTINEL.md` for the Sentinel gateway, rule engine, and phase model.
 
 ## Integration
 
