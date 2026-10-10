@@ -26,7 +26,7 @@ import { ConfigForm } from './components/ConfigForm';
 import { TestConsole } from './components/TestConsole';
 import { FlowIO } from './components/FlowIO';
 import { AnalyticsOverlay } from './components/AnalyticsOverlay';
-import { AIGenerator } from './components/AIGenerator';
+import { BuilderChat } from './components/BuilderChat';
 import { PluginMarketplace } from './components/PluginMarketplace';
 import { TemplateGallery } from './components/TemplateGallery';
 import { ValidationPanel } from './components/ValidationPanel';
@@ -55,7 +55,7 @@ const App: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [flowName, setFlowName] = useState('Untitled Agent');
   const [showTestConsole, setShowTestConsole] = useState(false);
-  const [showAIGenerator, setShowAIGenerator] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showPlugins, setShowPlugins] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -139,6 +139,48 @@ const App: React.FC = () => {
     setNodes((nds) => nds.concat(copy));
     setSelectedNode(copy);
   }, [selectedNode, setNodes]);
+
+  // Builder-chat operations (by node id)
+  const connectNodes = useCallback(
+    (sourceId: string, targetId: string): boolean => {
+      if (edges.some(e => e.source === sourceId && e.target === targetId)) return false;
+      pendingHistoryLabel.current = 'Connect nodes';
+      setEdges(eds => addEdge({ source: sourceId, target: targetId, animated: true }, eds));
+      return true;
+    },
+    [edges, setEdges]
+  );
+
+  const configureNode = useCallback(
+    (nodeId: string, patch: Record<string, unknown>) => {
+      pendingHistoryLabel.current = 'Configure node';
+      setNodes(nds =>
+        nds.map(n =>
+          n.id === nodeId
+            ? { ...n, data: { ...n.data, config: { ...((n.data?.config as NodeConfig) || {}), ...patch } } }
+            : n
+        )
+      );
+    },
+    [setNodes]
+  );
+
+  const removeNodeById = useCallback(
+    (nodeId: string) => {
+      pendingHistoryLabel.current = 'Delete node';
+      setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+      setNodes(nds => nds.filter(n => n.id !== nodeId));
+      setSelectedNode(current => (current?.id === nodeId ? null : current));
+    },
+    [setEdges, setNodes]
+  );
+
+  const clearCanvas = useCallback(() => {
+    pendingHistoryLabel.current = 'Clear canvas';
+    setNodes([]);
+    setEdges([]);
+    setSelectedNode(null);
+  }, [setNodes, setEdges]);
 
   // Manual save
   const saveFlow = useCallback(() => {
@@ -666,8 +708,8 @@ const App: React.FC = () => {
           </button>
           
           <button
-            onClick={() => setShowAIGenerator(true)}
-            title="Generate flow with AI"
+            onClick={() => setShowBuilder(true)}
+            title="Builder chat — describe what to build or change"
             style={{ ...toolbarButtonStyle, background: '#8b5cf6' }}
           >
             🤖
@@ -758,13 +800,21 @@ const App: React.FC = () => {
           <AnalyticsOverlay nodes={nodes} edges={edges} metrics={nodeStats} />
         )}
 
-        {showAIGenerator && (
-          <AIGenerator
-            onGenerate={(flow) => {
+        {showBuilder && (
+          <BuilderChat
+            nodes={nodes}
+            edges={edges}
+            selectedNodeId={selectedNode?.id || null}
+            onReplaceFlow={(flow) => {
               importFlow(flow);
-              setShowAIGenerator(false);
+              setShowBuilder(false);
             }}
-            onClose={() => setShowAIGenerator(false)}
+            onAddNode={addNode}
+            onConnectNodes={connectNodes}
+            onConfigureNode={configureNode}
+            onRemoveNode={removeNodeById}
+            onClearCanvas={clearCanvas}
+            onClose={() => setShowBuilder(false)}
           />
         )}
 
