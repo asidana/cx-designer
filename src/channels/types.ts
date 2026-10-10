@@ -32,6 +32,12 @@ export interface ChannelMessage {
   role: MessageRole;
   parts: MessagePart[];
   at: number;
+  /** carrier context (page URL/title from widgets, device, locale) */
+  context?: {
+    page?: { url: string; title: string; selection?: string };
+    locale?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface ChannelCapabilities {

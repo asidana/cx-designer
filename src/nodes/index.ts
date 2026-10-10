@@ -10,6 +10,7 @@ import { voiceInputNode } from './voice/voiceInput';
 import { voiceOutputNode } from './voice/voiceOutput';
 import { chatInputNode } from './chat/chatInput';
 import { chatOutputNode } from './chat/chatOutput';
+import { pageAssistantNode } from './chat/pageAssistant';
 import { intentClassifierNode } from './agentic/intentClassifier';
 import { reasoningLoopNode } from './agentic/reasoningLoop';
 import { webcrawlerNode } from './agentic/webcrawler';
@@ -39,6 +40,7 @@ export function registerBuiltInNodes(): void {
   // Chat Layer
   nodeRegistry.register(chatInputNode);
   nodeRegistry.register(chatOutputNode);
+  nodeRegistry.register(pageAssistantNode);
   
   // Agentic Layer
   nodeRegistry.register(intentClassifierNode);

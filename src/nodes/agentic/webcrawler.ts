@@ -47,13 +47,13 @@ export const webcrawlerNode: NodeDefinition = {
       label: 'Sync Provider',
       type: 'select',
       options: [
-        { label: 'Firecrawl', value: 'firecrawl' },
+        { label: 'Page Agent (native)', value: 'page-agent' },
         { label: 'Jina Reader', value: 'jina-reader' },
         { label: 'Sitemap', value: 'sitemap' }
       ],
-      default: 'firecrawl',
+      default: 'page-agent',
       required: true,
-      description: 'Content extraction provider (API key via env)'
+      description: 'Native page-agent sync needs no third-party crawl API'
     },
     {
       name: 'startUrls',
@@ -178,7 +178,7 @@ export const webcrawlerNode: NodeDefinition = {
   }
 
   private _config: CrawlerConfig = {
-    provider: 'firecrawl',
+    provider: 'page-agent',
     startUrls: ['https://example.com/docs'],
     crawlSubpages: true,
     useSitemap: false,

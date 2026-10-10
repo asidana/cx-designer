@@ -28,12 +28,14 @@ export async function runChatTurn(
     at: Date.now()
   };
 
-  const result = await engine.execute(text, msg.sessionId);
-  // Chat flows terminate at chat.output ({ message: { text } });
-  // agentic flows terminate with { response }.
+  const result = await engine.execute(text, msg.sessionId, {
+    ...(msg.context?.page ? { pageContext: msg.context.page } : {}),
+    ...(msg.context?.locale ? { locale: msg.context.locale } : {})
+  });
+  // Termination shapes: agentic { response }, chat { message.text }, page { answer }.
   const message = result.outputs.message as { text?: string } | undefined;
   const text_out = String(
-    result.outputs.response ?? message?.text ?? ''
+    result.outputs.response ?? result.outputs.answer ?? message?.text ?? ''
   );
   const reply: ChannelMessage = {
     id: `${msg.id}_reply`,

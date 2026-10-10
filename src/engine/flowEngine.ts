@@ -36,9 +36,15 @@ export class FlowEngine {
   }
 
   /**
-   * Execute the flow for a single turn (text input)
+   * Execute the flow for a single turn (text input).
+   * initialState is merged first — carriers (chat runtime, page widget)
+   * use it for envelope context such as pageContext.
    */
-  async execute(input: string, sessionId: string): Promise<NodeResult> {
+  async execute(
+    input: string,
+    sessionId: string,
+    initialState: Record<string, unknown> = {}
+  ): Promise<NodeResult> {
     // Find entry nodes (no incoming edges)
     const entryNodes = this.getEntryNodes();
     if (entryNodes.length === 0) {
@@ -46,7 +52,7 @@ export class FlowEngine {
     }
 
     // Execute starting from first entry node
-    return this.executeFrom(entryNodes[0].id, input, sessionId);
+    return this.executeFrom(entryNodes[0].id, input, sessionId, initialState);
   }
 
   /**

@@ -285,11 +285,17 @@ const App: React.FC = () => {
     [setEdges]
   );
 
-  // Add a new node to the canvas
+  // Add a new node to the canvas.
+  // Two paths, one creator (the palette's biggest job):
+  // - click: smart placement at viewport center + cascade offset
+  // - drag-and-drop: exact drop point via screenToFlowPosition
   // Border style encodes node kind (not color alone): dashed = AI,
-  // dotted = governance, double = voice, solid = deterministic/control.
-  const addNode = useCallback(
-    (type: NodeType) => {
+  // dotted = governance, double = voice/chat, solid = deterministic/control.
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const placeCascade = useRef(0);
+
+  const createNode = useCallback(
+    (type: NodeType, position: { x: number; y: number }) => {
       const nodeDef = nodeRegistry.get(type);
       if (!nodeDef) return;
 
@@ -311,7 +317,7 @@ const App: React.FC = () => {
       const newNode: Node = {
         id: `${type}_${Date.now()}`,
         type: 'default',
-        position: { x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 },
+        position,
         style: { borderColor: nodeDef.color, ...border },
         data: {
           label: nodeDef.label,
@@ -321,10 +327,40 @@ const App: React.FC = () => {
       };
 
       setNodes((nds) => nds.concat(newNode));
+      setSelectedNode(newNode);
       pendingHistoryLabel.current = `Add ${nodeDef.label}`;
       success('Node added', `${nodeDef.label} added to canvas`);
     },
     [setNodes, success]
+  );
+
+  const addNode = useCallback(
+    (type: NodeType) => {
+      // Smart click-to-add: viewport center, cascaded so repeats never stack.
+      const rect = canvasRef.current?.getBoundingClientRect();
+      let position = { x: 400 + Math.random() * 200, y: 300 + Math.random() * 200 };
+      if (rect && flowInstance.current) {
+        const center = flowInstance.current.screenToFlowPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        });
+        const step = (placeCascade.current % 6) * 36;
+        placeCascade.current += 1;
+        position = { x: center.x - 75 + step, y: center.y - 20 + step };
+      }
+      createNode(type, position);
+    },
+    [createNode]
+  );
+
+  const onDropNode = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const type = e.dataTransfer.getData('application/cx-node') as NodeType;
+      if (!type || !flowInstance.current) return;
+      createNode(type, flowInstance.current.screenToFlowPosition({ x: e.clientX, y: e.clientY }));
+    },
+    [createNode]
   );
 
   // Update node config
@@ -383,14 +419,25 @@ const App: React.FC = () => {
     return FlowValidator.validate(graph);
   }, [nodes, edges, flowName, flowVersion]);
 
-  // Get nodes by category for the palette
+  // Get nodes by category for the palette (with descriptions for search)
+  const [paletteQuery, setPaletteQuery] = useState('');
   const paletteItems = nodeRegistry.getAll().map((node) => ({
     type: node.type,
     label: node.label,
     icon: node.icon,
     color: node.color,
-    category: node.category
+    category: node.category,
+    description: node.description
   }));
+  const query = paletteQuery.trim().toLowerCase();
+  const visiblePaletteItems = query
+    ? paletteItems.filter(
+        item =>
+          item.label.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query) ||
+          item.category.includes(query)
+      )
+    : paletteItems;
 
   // Get selected node definition
   const selectedNodeDef = selectedNode?.data?.type
@@ -423,28 +470,52 @@ const App: React.FC = () => {
         }}
       >
         <h2 style={{ marginTop: 0, fontSize: 18 }}>🎨 Node Palette</h2>
-        
+        <input
+          value={paletteQuery}
+          onChange={(e) => setPaletteQuery(e.target.value)}
+          placeholder="Search nodes…"
+          title="Filter by name, description, or category. Drag a row onto the canvas, or click to place."
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            borderRadius: 4,
+            border: '1px solid #333',
+            background: '#0f0f1a',
+            color: 'white',
+            fontSize: 13,
+            marginBottom: 12
+          }}
+        />
+        <div style={{ fontSize: 11, color: '#666', marginBottom: 12 }}>
+          Drag onto canvas · or click to place
+        </div>
+
         {['voice', 'chat', 'agentic', 'deterministic', 'control', 'governance', 'integration'].map(
-          (category) => (
+          (category) => {
+            const items = visiblePaletteItems.filter((item) => item.category === category);
+            if (items.length === 0) return null;
+            return (
             <div key={category} style={{ marginBottom: 16 }}>
               <h3 style={{ fontSize: 12, textTransform: 'uppercase', color: '#888' }}>
                 {category}
               </h3>
-              {paletteItems
-                .filter((item) => item.category === category)
+              {items
                 .map((item) => (
                   <div
                     key={item.type}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('application/cx-node', item.type);
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
                     onClick={() => addNode(item.type)}
+                    title={`${item.label} — ${item.description}`}
                     style={{
                       padding: '8px 12px',
                       marginBottom: 4,
                       background: '#16213e',
                       borderRadius: 4,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
+                      cursor: 'grab',
                       fontSize: 13,
                       transition: 'background 0.2s'
                     }}
@@ -455,17 +526,36 @@ const App: React.FC = () => {
                       e.currentTarget.style.background = '#16213e';
                     }}
                   >
-                    <span>{item.icon}</span>
-                    <span>{item.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2, lineHeight: 1.35 }}>
+                      {item.description}
+                    </div>
                   </div>
                 ))}
             </div>
-          )
+            );
+          }
+        )}
+        {visiblePaletteItems.length === 0 && (
+          <div style={{ fontSize: 12, color: '#666', textAlign: 'center', marginTop: 16 }}>
+            No nodes match “{paletteQuery}”.
+          </div>
         )}
       </div>
 
       {/* Canvas */}
-      <div style={{ flex: 1, position: 'relative' }}>
+      <div
+        ref={canvasRef}
+        onDrop={onDropNode}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }}
+        style={{ flex: 1, position: 'relative' }}
+      >
         {/* Toolbar */}
         <div
           style={{

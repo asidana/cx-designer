@@ -14,6 +14,7 @@ export type NodeType =
   // Chat Layer
   | 'chat.input'
   | 'chat.output'
+  | 'chat.page_assistant'
   // Agentic Layer
   | 'agentic.intent_classifier'
   | 'agentic.reasoning_loop'

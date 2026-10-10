@@ -115,13 +115,24 @@
 
       send(text) {
         this.bubble('caller', text);
+        var sel = '';
+        try {
+          sel = String(window.getSelection ? window.getSelection().toString() : '').slice(0, 500);
+        } catch (e) { /* selection unavailable */ }
         var envelope = {
           id: 'web_' + Date.now(),
           channel: 'webchat',
           sessionId: this.sessionId,
           role: 'caller',
           parts: [{ kind: 'text', text: text }],
-          at: Date.now()
+          at: Date.now(),
+          context: {
+            page: {
+              url: String(window.location.href).slice(0, 500),
+              title: String(window.document.title).slice(0, 200),
+              selection: sel || undefined
+            }
+          }
         };
         if (this.ws && this.ws.readyState === 1) {
           this.ws.send(JSON.stringify(envelope));
