@@ -9,6 +9,7 @@
 
 import { FlowGraph, FlowNode, ExecutionContext, NodeResult, AudioChunk } from '../types/node';
 import { nodeRegistry } from '../nodes/registry';
+import { monitoringService } from '../monitoring/Monitoring';
 // Side-effect import: registers all built-in nodes + framework adapters,
 // so the engine works standalone (tests, scripts) without the App shell.
 import '../nodes/index';
@@ -79,7 +80,26 @@ export class FlowEngine {
       throw new Error(`Node not found: ${nodeId}`);
     }
 
-    return this.executeNode(nodeId, context);
+    const startedAt = Date.now();
+    try {
+      const result = await this.executeNode(nodeId, context);
+      monitoringService.recordFlowExecution(this.graph.id, {
+        latencyMs: Date.now() - startedAt,
+        cost: context.costAccumulator,
+        tokenCount: (result.outputs.tokens as number) || 0,
+        success: true
+      });
+      return result;
+    } catch (error) {
+      monitoringService.recordFlowExecution(this.graph.id, {
+        latencyMs: Date.now() - startedAt,
+        cost: context.costAccumulator,
+        tokenCount: 0,
+        success: false,
+        errorType: error instanceof Error ? error.name : 'error'
+      });
+      throw error;
+    }
   }
 
   /**
@@ -186,10 +206,17 @@ export class FlowEngine {
       Object.entries(result.variableUpdates).forEach(([key, value]) => {
         context.variables.set(key, value);
       });
-      context.costAccumulator += (result.outputs.cost as number) || 0;
+      const nodeCost = (result.outputs.cost as number) || 0;
+      context.costAccumulator += nodeCost;
+      // Real metrics — what the Observability and Insights pages read.
+      monitoringService.recordNodeExecution(this.graph.id, nodeId, {
+        latencyMs: latency,
+        success: true,
+        guardrailViolations: result.guardrailViolations?.length || 0
+      });
       this.traceCallback?.(nodeId, 'complete', {
         latencyMs: latency,
-        cost: (result.outputs.cost as number) || 0
+        cost: nodeCost
       });
 
       // Log completion
@@ -220,6 +247,11 @@ export class FlowEngine {
     } catch (error) {
       const latency = Date.now() - startTime;
       this.traceCallback?.(nodeId, 'error', { latencyMs: latency, error: String(error) });
+      monitoringService.recordNodeExecution(this.graph.id, nodeId, {
+        latencyMs: latency,
+        success: false,
+        guardrailViolations: 0
+      });
       context.auditLog.push({
         id: `audit_${Date.now()}`,
         timestamp: Date.now(),

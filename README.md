@@ -6,6 +6,8 @@ A visual voice agent builder — Flowise-class, but purpose-built for AI voice a
 
 ## Features
 
+- **Nine-section shell** — CX Designer, Guardrails, Voice Gateway, Observability, Insights, Settings, Admin, Super Admin, Help — each with its own pages ([docs/NAVIGATION.md](docs/NAVIGATION.md))
+- **Command palette** — `Ctrl+K` reaches every page, canvas action and node type
 - **Visual Canvas** — Drag-and-drop node-based flow builder (React Flow)
 - **Voice-Native** — STT, TTS, VAD, barge-in as first-class nodes
 - **Agentic Reasoning** — ReAct pattern with hard ceilings (cost, iterations, loop detection)
@@ -159,6 +161,7 @@ Full reference: [docs/API.md](docs/API.md).
 
 | Doc | Contents |
 |-----|----------|
+| [docs/NAVIGATION.md](docs/NAVIGATION.md) | The nine sections, their pages and every keyboard shortcut |
 | [docs/API.md](docs/API.md) | Full API reference (flows, builds, deployments, evals, WebSocket, health) |
 | [docs/NODES.md](docs/NODES.md) | Node catalog — all built-in node types by category |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Environment variable reference |

@@ -1,8 +1,10 @@
 /**
- * Agentic CX Designer — Main Application
- * 
- * A visual canvas for building AI voice agents.
- * Built with React Flow + Zustand.
+ * CX Designer — application shell.
+ *
+ * Nine-section side menu, one page body. CX Designer > Canvas owns the
+ * builder; every other page is a self-contained component reading its own
+ * domain module. Navigation is declarative (navigation/navModel.ts) and
+ * Ctrl+K ranks everything from the same model.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,8 +16,8 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   Connection,
-  Node,
   Edge,
+  Node,
   ReactFlowInstance
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -27,26 +29,29 @@ import { TestConsole } from './components/TestConsole';
 import { FlowIO } from './components/FlowIO';
 import { AnalyticsOverlay } from './components/AnalyticsOverlay';
 import { BuilderChat } from './components/BuilderChat';
-import { PluginMarketplace } from './components/PluginMarketplace';
 import { TemplateGallery } from './components/TemplateGallery';
 import { ValidationPanel } from './components/ValidationPanel';
 import { PreflightPanel, lintFlow } from './components/PreflightPanel';
-import { SettingsPanel, Settings } from './components/SettingsPanel';
-import { HelpPanel } from './components/HelpPanel';
 import { Onboarding } from './components/Onboarding';
 import { VersionControlPanel } from './components/VersionControlPanel';
 import { ScriptView } from './components/ScriptView';
 import type { VersionDiff } from './versioning/VersionControl';
-import { MonitoringDashboard } from './components/MonitoringDashboard';
-import { CollaborationPanel } from './components/CollaborationPanel';
 import { Notifications, useNotifications } from './components/Notifications';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { historyManager } from './history/HistoryManager';
 import { autoSave } from './autosave/AutoSave';
 import { FlowValidator } from './validation/FlowValidator';
+import { SideMenu } from './components/SideMenu';
+import { CommandPalette, Command } from './components/CommandPalette';
+import { PAGES } from './pages/registry';
+import type { PageContext } from './pages/context';
+import { DEFAULT_PAGE, PAGE_SHORTCUTS, SECTIONS, page as pageDef } from './navigation/navModel';
+import { setThemeMode, theme, Button } from './components/ui';
+import type { Settings } from './components/SettingsPanel';
+import { recordAudit } from './workspace/store';
 import { FlowGraph, FlowNode, FlowEdge, NodeType, NodeConfig } from './types/node';
 
-// Initialize built-in nodes
+// Registers built-in nodes for the palette and engine.
 import './nodes';
 
 const App: React.FC = () => {
@@ -54,22 +59,9 @@ const App: React.FC = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [flowName, setFlowName] = useState('Untitled Agent');
-  const [showTestConsole, setShowTestConsole] = useState(false);
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showPlugins, setShowPlugins] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [showValidation, setShowValidation] = useState(false);
-  const [showPreflight, setShowPreflight] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showVersionControl, setShowVersionControl] = useState(false);
-  const [showScriptView, setShowScriptView] = useState(false);
-  const [visualDiff, setVisualDiff] = useState<VersionDiff | null>(null);
-  const [showMonitoring, setShowMonitoring] = useState(false);
-  const [showCollaboration, setShowCollaboration] = useState(false);
   const [flowVersion, setFlowVersion] = useState('1.0.0');
+
+  // Workspace settings — owned by the shell, edited in Settings pages.
   const [settings, setSettings] = useState<Settings>({
     theme: 'dark',
     autoSave: true,
@@ -82,7 +74,59 @@ const App: React.FC = () => {
     sounds: true
   });
 
+  useEffect(() => {
+    setThemeMode(settings.theme);
+  }, [settings.theme]);
+
+  // ── Navigation ────────────────────────────────────────────────────────
+  const [activePage, setActivePage] = useState(DEFAULT_PAGE);
+  const [pagesOpen, setPagesOpen] = useState(true);
+  const [paletteOpen, setPaletteOpen] = useState(true);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
+
+  const activeSection = useMemo(
+    () => SECTIONS.find(s => s.pages.some(p => p.id === activePage))?.id || 'designer',
+    [activePage]
+  );
+  const isCanvas = activePage === 'designer.canvas';
+
   const { notifications, dismissNotification, success, error } = useNotifications();
+
+  const notify = useCallback(
+    (message: string, tone: 'info' | 'good' | 'bad' = 'info') => {
+      if (tone === 'good') success(message);
+      else if (tone === 'bad') error(message);
+      else success(message, '');
+    },
+    [success, error]
+  );
+
+const currentFlow: FlowGraph = useMemo(
+    () => ({
+      id: 'flow_1',
+      name: flowName,
+      version: flowVersion,
+      nodes: nodes as FlowNode[],
+      edges: edges as FlowEdge[]
+    }),
+    [flowName, flowVersion, nodes, edges]
+  );
+
+  const ctx: PageContext = useMemo(
+    () => ({
+      flowName,
+      flowVersion,
+      nodeCount: nodes.length,
+      currentFlow,
+      navigate: setActivePage,
+      notify,
+      settings,
+      onSettingsChange: setSettings
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [flowName, flowVersion, nodes.length, currentFlow, notify, settings]
+  );
 
   // Structural-change history (add/delete/import only — drags don't pollute undo)
   const pendingHistoryLabel = useRef<string | null>(null);
@@ -107,11 +151,30 @@ const App: React.FC = () => {
     (flow: FlowGraph | null) => {
       if (!flow) return;
       setNodes(flow.nodes as Node[]);
-      setEdges(flow.edges as Edge[]);
+      setEdges(flow.edges as never[]);
       setSelectedNode(null);
     },
     [setNodes, setEdges]
   );
+
+  // ── Dirty tracking ────────────────────────────────────────────────────
+  const signature = useMemo(
+    () => JSON.stringify({ flowName, flowVersion, nodes, edges }),
+    [flowName, flowVersion, nodes, edges]
+  );
+  const savedSignature = useRef<string>('');
+  const dirty = signature !== savedSignature.current;
+
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   // Delete selected node + its edges
   const deleteSelected = useCallback(() => {
@@ -197,6 +260,8 @@ const App: React.FC = () => {
       edges: edges as FlowEdge[]
     });
     autoSave.save();
+    savedSignature.current = JSON.stringify({ flowName, flowVersion, nodes, edges });
+    recordAudit('designer', 'Saved flow', `${flowName} v${flowVersion}`);
     success('Flow saved', flowName);
   }, [nodes, edges, flowName, flowVersion, success]);
 
@@ -207,7 +272,17 @@ const App: React.FC = () => {
 
   const flowInstance = useRef<ReactFlowInstance | null>(null);
 
+  // Page shortcuts (single keys) + Ctrl+K, suppressed while typing
+  const navigateFromShortcut = useCallback(
+    (key: string) => {
+      const pageId = PAGE_SHORTCUTS[key];
+      if (pageId) setActivePage(pageId);
+    },
+    []
+  );
+
   useKeyboardShortcuts({
+    enabled: isCanvas,
     onUndo: () => applyHistoryFlow(historyManager.undo()),
     onRedo: () => applyHistoryFlow(historyManager.redo()),
     onSave: saveFlow,
@@ -216,10 +291,14 @@ const App: React.FC = () => {
     onSelectAll: selectAll,
     onZoomIn: () => flowInstance.current?.zoomIn(),
     onZoomOut: () => flowInstance.current?.zoomOut(),
-    onResetZoom: () => flowInstance.current?.fitView()
+    onResetZoom: () => flowInstance.current?.fitView(),
+    onCommandPalette: () => setShowCommandPalette(true),
+    onPageShortcut: navigateFromShortcut,
+    onTogglePalette: () => setPaletteOpen(o => !o)
   });
 
   // Show onboarding on first run
+  const [showOnboarding, setShowOnboarding] = useState(false);
   useEffect(() => {
     try {
       if (!localStorage.getItem('agentic_cx_onboarded')) {
@@ -268,9 +347,7 @@ const App: React.FC = () => {
     []
   );
 
-  const handleClearTrace = useCallback(() => {
-    setActiveNodeId(null);
-  }, []);
+  const handleClearTrace = useCallback(() => setActiveNodeId(null), []);
 
   const handleTraceSelectNode = useCallback(
     (nodeId: string) => {
@@ -282,6 +359,7 @@ const App: React.FC = () => {
 
   // Canvas nodes with live-trace highlight + version-diff tints.
   // Diff wins over trace pulse when a comparison is active.
+  const [visualDiff, setVisualDiff] = useState<VersionDiff | null>(null);
   const displayNodes = useMemo(() => {
     const added = new Set(visualDiff?.added || []);
     const modified = new Set((visualDiff?.modified || []).map(m => m.nodeId));
@@ -317,7 +395,7 @@ const App: React.FC = () => {
     });
   }, [nodes, activeNodeId, visualDiff]);
 
-  // Preflight issue count for the toolbar badge
+  // Preflight issue count — badges in the menu and the toolbar
   const preflightCount = useMemo(
     () => lintFlow(nodes, edges).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -396,8 +474,9 @@ const App: React.FC = () => {
         position = { x: center.x - 75 + step, y: center.y - 20 + step };
       }
       createNode(type, position);
+      if (!isCanvas) setActivePage('designer.canvas');
     },
-    [createNode]
+    [createNode, isCanvas]
   );
 
   const onDropNode = useCallback(
@@ -414,61 +493,65 @@ const App: React.FC = () => {
   const updateNodeConfig = useCallback(
     (nodeId: string, config: NodeConfig) => {
       setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, config } } : n
-        )
+        nds.map(n => (n.id === nodeId ? { ...n, data: { ...n.data, config } } : n))
       );
     },
     [setNodes]
   );
 
-  // Execute the flow
-  const executeFlow = useCallback(async () => {
-    const graph: FlowGraph = {
-      id: 'flow_1',
-      name: flowName,
-      version: flowVersion,
-      nodes: nodes as FlowNode[],
-      edges: edges as FlowEdge[]
-    };
+    // Execute the flow
+  const [lastRun, setLastRun] = useState<{
+    ok: boolean;
+    latencyMs: number;
+    cost: number;
+    output: string;
+  } | null>(null);
 
-    const engine = new FlowEngine(graph);
+  const executeFlow = useCallback(async () => {
+    const engine = new FlowEngine(currentFlow);
+    const startedAt = Date.now();
     try {
       const result = await engine.execute('Hello, I need help with my account', 'session_1');
-      console.log('Flow result:', result);
-      success('Flow executed', `Cost: $${result.outputs.cost || 0}`);
+      const latencyMs = Date.now() - startedAt;
+      const cost = (result.outputs.cost as number) || 0;
+      setLastRun({
+        ok: true,
+        latencyMs,
+        cost,
+        output: String(result.outputs.response ?? result.outputs.text ?? '')
+      });
+      success('Flow executed', `${latencyMs} ms · $${cost.toFixed(4)}`);
     } catch (err) {
+      setLastRun({ ok: false, latencyMs: Date.now() - startedAt, cost: 0, output: String(err) });
       error('Flow execution failed', String(err));
     }
-  }, [nodes, edges, flowName, flowVersion, success, error]);
+  }, [currentFlow, success, error]);
 
   // Import flow
-  const importFlow = useCallback((flow: FlowGraph) => {
-    pendingHistoryLabel.current = `Import ${flow.name}`;
-    setNodes(flow.nodes as Node[]);
-    setEdges(flow.edges as Edge[]);
-    setFlowName(flow.name);
-    setFlowVersion(flow.version);
-    setSelectedNode(null);
-    setVisualDiff(null);
-    success('Flow imported', flow.name);
-  }, [setNodes, setEdges, success]);
+  const importFlow = useCallback(
+    (flow: FlowGraph) => {
+      pendingHistoryLabel.current = `Import ${flow.name}`;
+      setNodes(flow.nodes as Node[]);
+      setEdges(flow.edges as never[]);
+      setFlowName(flow.name);
+      setFlowVersion(flow.version);
+      setSelectedNode(null);
+      setVisualDiff(null);
+      savedSignature.current = JSON.stringify({
+        name: flow.name,
+        version: flow.version,
+        nodes: flow.nodes,
+        edges: flow.edges
+      });
+      success('Flow imported', flow.name);
+    },
+    [setNodes, setEdges, success]
+  );
 
-  // Validate flow
-  const validateFlow = useCallback(() => {
-    const graph: FlowGraph = {
-      id: 'flow_1',
-      name: flowName,
-      version: flowVersion,
-      nodes: nodes as FlowNode[],
-      edges: edges as FlowEdge[]
-    };
-    return FlowValidator.validate(graph);
-  }, [nodes, edges, flowName, flowVersion]);
+  const validateFlow = useCallback(() => FlowValidator.validate(currentFlow), [currentFlow]);
 
-  // Get nodes by category for the palette (with descriptions for search)
-  const [paletteQuery, setPaletteQuery] = useState('');
-  const paletteItems = nodeRegistry.getAll().map((node) => ({
+  // Palette items (searchable by name, description, category)
+  const paletteItems = nodeRegistry.getAll().map(node => ({
     type: node.type,
     label: node.label,
     icon: node.icon,
@@ -486,476 +569,122 @@ const App: React.FC = () => {
       )
     : paletteItems;
 
-  // Get selected node definition
+  // Selected node definition + live validation
   const selectedNodeDef = selectedNode?.data?.type
     ? nodeRegistry.get(selectedNode.data.type as NodeType)
     : null;
+  const nodeValidation = useMemo(() => {
+    if (!selectedNodeDef) return { valid: true, errors: [] as Array<{ field: string; message: string }> };
+    const merged = {
+      ...(selectedNodeDef.config || {}),
+      ...((selectedNode?.data?.config as NodeConfig) || {})
+    };
+    try {
+      return selectedNodeDef.validate(merged);
+    } catch {
+      return { valid: true, errors: [] };
+    }
+  }, [selectedNodeDef, selectedNode]);
 
-  // Current flow as FlowGraph
-  const currentFlow: FlowGraph = {
-    id: 'flow_1',
-    name: flowName,
-    version: flowVersion,
-    nodes: nodes as FlowNode[],
-    edges: edges as FlowEdge[]
-  };
+  // ── Command palette ───────────────────────────────────────────────────
+  const commands = useMemo<Command[]>(() => {
+    const nav: Command[] = SECTIONS.flatMap(s =>
+      s.pages.map(p => ({
+        id: `nav:${p.id}`,
+        label: `${p.label} — ${s.label}`,
+        group: 'Go to',
+        icon: p.icon,
+        hint: p.hint,
+        shortcut: p.shortcut,
+        keywords: [...p.keywords, s.label, p.label],
+        run: () => setActivePage(p.id)
+      }))
+    );
+    const canvas: Command[] = [
+      { id: 'act:run', label: 'Run flow', group: 'Canvas', icon: '▶', hint: 'Execute from the entry node', shortcut: 'Ctrl+↵', run: () => void executeFlow() },
+      { id: 'act:save', label: 'Save flow', group: 'Canvas', icon: '💾', shortcut: 'Ctrl+S', run: saveFlow },
+      { id: 'act:undo', label: 'Undo', group: 'Canvas', icon: '↩️', shortcut: 'Ctrl+Z', run: () => applyHistoryFlow(historyManager.undo()) },
+      { id: 'act:redo', label: 'Redo', group: 'Canvas', icon: '↪️', shortcut: 'Ctrl+Shift+Z', run: () => applyHistoryFlow(historyManager.redo()) },
+      { id: 'act:dup', label: 'Duplicate selected node', group: 'Canvas', icon: '⧉', shortcut: 'Ctrl+D', run: duplicateSelected },
+      { id: 'act:del', label: 'Delete selected node', group: 'Canvas', icon: '🗑️', run: deleteSelected },
+      { id: 'act:clear', label: 'Clear canvas', group: 'Canvas', icon: '🧹', run: clearCanvas },
+      { id: 'act:palette', label: 'Toggle node palette', group: 'Canvas', icon: '🎨', shortcut: 'P', run: () => setPaletteOpen(o => !o) }
+    ];
+    const addNodes: Command[] = nodeRegistry.getAll().map(n => ({
+      id: `node:${n.type}`,
+      label: `Add ${n.label}`,
+      group: 'Add node',
+      icon: n.icon,
+      hint: n.description,
+      keywords: [n.category, n.type, n.description],
+      run: () => addNode(n.type)
+    }));
+    return [...nav, ...canvas, ...addNodes];
+  }, [executeFlow, saveFlow, applyHistoryFlow, duplicateSelected, deleteSelected, clearCanvas, addNode]);
 
-  return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex' }}>
-      {/* Notifications */}
-      <Notifications notifications={notifications} onDismiss={dismissNotification} />
+  // ── Render ────────────────────────────────────────────────────────────
+  const PageComponent = PAGES[activePage];
+  const activePageMeta = pageDef(activePage);
 
-      {/* Node Palette */}
-      <div
-        style={{
-          width: 250,
-          background: '#1a1a2e',
-          color: 'white',
-          padding: 16,
-          overflowY: 'auto',
-          borderRight: '1px solid #333'
-        }}
-      >
-        <h2 style={{ marginTop: 0, fontSize: 18 }}>🎨 Node Palette</h2>
-        <input
-          value={paletteQuery}
-          onChange={(e) => setPaletteQuery(e.target.value)}
-          placeholder="Search nodes…"
-          title="Filter by name, description, or category. Drag a row onto the canvas, or click to place."
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: 4,
-            border: '1px solid #333',
-            background: '#0f0f1a',
-            color: 'white',
-            fontSize: 13,
-            marginBottom: 12
-          }}
-        />
-        <div style={{ fontSize: 11, color: '#666', marginBottom: 12 }}>
-          Drag onto canvas · or click to place
-        </div>
-
-        {['voice', 'chat', 'agentic', 'deterministic', 'control', 'governance', 'integration'].map(
-          (category) => {
-            const items = visiblePaletteItems.filter((item) => item.category === category);
-            if (items.length === 0) return null;
-            return (
-            <div key={category} style={{ marginBottom: 16 }}>
-              <h3 style={{ fontSize: 12, textTransform: 'uppercase', color: '#888' }}>
-                {category}
-              </h3>
-              {items
-                .map((item) => (
-                  <div
-                    key={item.type}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('application/cx-node', item.type);
-                      e.dataTransfer.effectAllowed = 'copy';
-                    }}
-                    onClick={() => addNode(item.type)}
-                    title={`${item.label} — ${item.description}`}
-                    style={{
-                      padding: '8px 12px',
-                      marginBottom: 4,
-                      background: '#16213e',
-                      borderRadius: 4,
-                      cursor: 'grab',
-                      fontSize: 13,
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#1e3a5f';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#16213e';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span>{item.icon}</span>
-                      <span>{item.label}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#888', marginTop: 2, lineHeight: 1.35 }}>
-                      {item.description}
-                    </div>
-                  </div>
-                ))}
-            </div>
-            );
-          }
-        )}
-        {visiblePaletteItems.length === 0 && (
-          <div style={{ fontSize: 12, color: '#666', textAlign: 'center', marginTop: 16 }}>
-            No nodes match “{paletteQuery}”.
-          </div>
-        )}
-      </div>
-
-      {/* Canvas */}
-      <div
-        ref={canvasRef}
-        onDrop={onDropNode}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'copy';
-        }}
-        style={{ flex: 1, position: 'relative' }}
-      >
-        {/* Toolbar */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            right: 16,
-            zIndex: 10,
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center'
-          }}
-        >
-          <input
-            value={flowName}
-            onChange={(e) => setFlowName(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: 4,
-              border: '1px solid #333',
-              background: '#1a1a2e',
-              color: 'white',
-              fontSize: 14,
-              width: 200
-            }}
-          />
-          <span style={{ fontSize: 12, color: '#888' }}>v{flowVersion}</span>
-          
-          <div style={{ flex: 1 }} />
-          
-          <button
-            onClick={() => setShowCollaboration(true)}
-            title="Collaboration"
-            style={{ ...toolbarButtonStyle, background: '#6366f1' }}
-          >
-            👥
-          </button>
-          
-          <button
-            onClick={() => setShowMonitoring(true)}
-            title="Monitoring dashboard"
-            style={{ ...toolbarButtonStyle, background: '#6366f1' }}
-          >
-            📈
-          </button>
-          
-          <button
-            onClick={() => setShowVersionControl(true)}
-            title="Version history"
-            style={{ ...toolbarButtonStyle, background: '#6366f1' }}
-          >
-            📝
-          </button>
-          
-          <button
-            onClick={() => setShowHelp(true)}
-            title="Help & shortcuts"
-            style={{ ...toolbarButtonStyle, background: '#6366f1' }}
-          >
-            ❓
-          </button>
-          
-          <button
-            onClick={() => setShowSettings(true)}
-            title="Settings"
-            style={{ ...toolbarButtonStyle, background: '#6366f1' }}
-          >
-            ⚙️
-          </button>
-          
-          <button
-            onClick={() => setShowValidation(true)}
-            title="Validate flow"
-            style={{ ...toolbarButtonStyle, background: '#10b981' }}
-          >
-            ✅
-          </button>
-
-          <button
-            onClick={() => setShowPreflight(!showPreflight)}
-            title={`Preflight lint (${preflightCount} issue${preflightCount === 1 ? '' : 's'})`}
-            style={{
-              ...toolbarButtonStyle,
-              background: showPreflight
-                ? '#f59e0b'
-                : preflightCount > 0
-                  ? '#b45309'
-                  : '#6366f1'
-            }}
-          >
-            ✈️{preflightCount > 0 ? ` ${preflightCount}` : ''}
-          </button>
-          
-          <button
-            onClick={() => setShowTemplates(true)}
-            title="Template gallery"
-            style={{ ...toolbarButtonStyle, background: '#6366f1' }}
-          >
-            📚
-          </button>
-
-          <button
-            onClick={() => setShowScriptView(!showScriptView)}
-            title="Script view (linear conversation outline)"
-            style={{ ...toolbarButtonStyle, background: showScriptView ? '#f59e0b' : '#6366f1' }}
-          >
-            📜
-          </button>
-          
-          <button
-            onClick={() => setShowBuilder(true)}
-            title="Builder chat — describe what to build or change"
-            style={{ ...toolbarButtonStyle, background: '#8b5cf6' }}
-          >
-            🤖
-          </button>
-          
-          <button
-            onClick={() => setShowPlugins(true)}
-            title="Plugin marketplace"
-            style={{ ...toolbarButtonStyle, background: '#6366f1' }}
-          >
-            🧩
-          </button>
-          
-          <button
-            onClick={() => setShowAnalytics(!showAnalytics)}
-            title="Node analytics overlay"
-            style={{ ...toolbarButtonStyle, background: showAnalytics ? '#f59e0b' : '#6366f1' }}
-          >
-            📊
-          </button>
-          
-          <FlowIO flow={currentFlow} onImport={importFlow} />
-          
-          <button
-            onClick={() => setShowTestConsole(!showTestConsole)}
-            title="Real-time test console"
-            style={{ ...toolbarButtonStyle, background: showTestConsole ? '#f59e0b' : '#6366f1' }}
-          >
-            🧪
-          </button>
-          
-          <button
-            onClick={executeFlow}
-            title="Run flow"
-            style={{ ...toolbarButtonStyle, background: '#10b981' }}
-          >
-            ▶
-          </button>
-        </div>
-
-        <ReactFlow
-          nodes={displayNodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeClick={(_, node) => setSelectedNode(node)}
-          onPaneClick={() => setSelectedNode(null)}
-          onInit={(instance) => {
-            flowInstance.current = instance;
-          }}
-          fitView
-          style={{ paddingTop: 60 }}
-        >
-          <Background color="#333" gap={16} />
-          <Controls />
-          {nodes.length === 0 && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '40%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                textAlign: 'center',
-                color: '#666',
-                pointerEvents: 'none',
-                zIndex: 5
-              }}
-            >
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🎙️</div>
-              <div style={{ fontSize: 15, marginBottom: 4 }}>
-                Start with a template (📚), generate with AI (🤖),
-              </div>
-              <div style={{ fontSize: 15 }}>or drag nodes from the palette →</div>
-            </div>
-          )}
-          <MiniMap
-            nodeColor={(n) => {
-              const type = n.data?.type as NodeType;
-              const def = nodeRegistry.get(type);
-              return def?.color || '#666';
-            }}
-          />
-        </ReactFlow>
-
-        {/* Overlays */}
-        {showAnalytics && (
-          <AnalyticsOverlay nodes={nodes} edges={edges} metrics={nodeStats} />
-        )}
-
-        {showBuilder && (
+  // Designer pages that need canvas state render here rather than in the
+  // page registry, because they close over the engine callbacks.
+  const renderDesignerPage = (): React.ReactNode => {
+    switch (activePage) {
+      case 'designer.templates':
+        return <TemplateGallery onSelect={importFlow} onClose={() => setActivePage('designer.canvas')} />;
+      case 'designer.builder':
+        return (
           <BuilderChat
             nodes={nodes}
             edges={edges}
             selectedNodeId={selectedNode?.id || null}
-            onReplaceFlow={(flow) => {
-              importFlow(flow);
-              setShowBuilder(false);
-            }}
+            onReplaceFlow={importFlow}
             onAddNode={addNode}
             onConnectNodes={connectNodes}
             onConfigureNode={configureNode}
             onRemoveNode={removeNodeById}
             onClearCanvas={clearCanvas}
-            onClose={() => setShowBuilder(false)}
+            onClose={() => setActivePage('designer.canvas')}
           />
-        )}
-
-        {showPlugins && <PluginMarketplace onClose={() => setShowPlugins(false)} />}
-
-        {showTemplates && (
-          <TemplateGallery
-            onSelect={(flow) => {
-              importFlow(flow);
-              setShowTemplates(false);
-            }}
-            onClose={() => setShowTemplates(false)}
-          />
-        )}
-
-        {showValidation && (
-          <ValidationPanel
-            result={validateFlow()}
-            onClose={() => setShowValidation(false)}
-          />
-        )}
-
-        {showSettings && (
-          <SettingsPanel
-            settings={settings}
-            onChange={setSettings}
-            onClose={() => setShowSettings(false)}
-          />
-        )}
-
-        {showHelp && <HelpPanel onClose={() => setShowHelp(false)} />}
-
-        {showOnboarding && <Onboarding onComplete={() => setShowOnboarding(false)} />}
-
-        {showVersionControl && (
-          <VersionControlPanel
-            flowId="flow_1"
-            currentFlow={currentFlow}
-            onRestore={(flow) => {
-              importFlow(flow);
-              setShowVersionControl(false);
-            }}
-            onVisualDiff={setVisualDiff}
-            onClose={() => setShowVersionControl(false)}
-          />
-        )}
-
-        {showScriptView && (
+        );
+      case 'designer.script':
+        return (
           <ScriptView
             nodes={nodes}
             edges={edges}
             onSelectNode={handleTraceSelectNode}
-            onClose={() => setShowScriptView(false)}
+            onClose={() => setActivePage('designer.canvas')}
           />
-        )}
-
-        {visualDiff && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 16,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 60,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              background: 'rgba(15, 15, 26, 0.95)',
-              border: '1px solid #333',
-              borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: 12
-            }}
-          >
-            <span>
-              <span style={{ color: '#10b981' }}>■ added ({visualDiff.added.length})</span>
-              {' · '}
-              <span style={{ color: '#f59e0b' }}>
-                ■ modified ({visualDiff.modified.length})
-              </span>
-              {' · '}
-              <span style={{ color: '#ef4444' }}>
-                ■ removed ({visualDiff.removed.join(', ') || 'none on canvas'})
-              </span>
-            </span>
-            <button
-              onClick={() => setVisualDiff(null)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: 4,
-                border: '1px solid #333',
-                background: 'transparent',
-                color: '#aaa',
-                cursor: 'pointer',
-                fontSize: 12
-              }}
-            >
-              Exit diff
-            </button>
-          </div>
-        )}
-
-        {showMonitoring && (
-          <MonitoringDashboard
-            flowId="flow_1"
-            onClose={() => setShowMonitoring(false)}
-          />
-        )}
-
-        {showCollaboration && (
-          <CollaborationPanel
-            flowId="flow_1"
-            currentUser={{
-              id: 'user_1',
-              name: 'User',
-              email: 'user@example.com',
-              color: '#8b5cf6',
-              isOnline: true,
-              lastActive: Date.now()
-            }}
-            onClose={() => setShowCollaboration(false)}
-          />
-        )}
-
-        {showPreflight && (
+        );
+      case 'designer.preflight':
+        return (
           <PreflightPanel
             nodes={nodes}
             edges={edges}
             flowName={flowName}
             flowVersion={flowVersion}
             onSelectNode={handleTraceSelectNode}
-            onClose={() => setShowPreflight(false)}
+            onClose={() => setActivePage('designer.canvas')}
           />
-        )}
-
-        {showTestConsole && (
+        );
+      case 'designer.validation':
+        return (
+          <ValidationPanel result={validateFlow()} onClose={() => setActivePage('designer.canvas')} />
+        );
+      case 'designer.analytics':
+        return <AnalyticsOverlay nodes={nodes} edges={edges} metrics={nodeStats} />;
+      case 'designer.versions':
+        return (
+          <VersionControlPanel
+            flowId="flow_1"
+            currentFlow={currentFlow}
+            onRestore={importFlow}
+            onVisualDiff={setVisualDiff}
+            onClose={() => setActivePage('designer.canvas')}
+          />
+        );
+      case 'designer.testconsole':
+        return (
           <TestConsole
             nodes={nodes}
             edges={edges}
@@ -964,43 +693,213 @@ const App: React.FC = () => {
             onSelectNode={handleTraceSelectNode}
             onClearTrace={handleClearTrace}
           />
+        );
+      case 'designer.flowio':
+        return (
+          <div style={{ padding: '64px 24px 24px', display: 'flex', justifyContent: 'center' }}>
+            <FlowIO flow={currentFlow} onImport={importFlow} />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', display: 'flex', background: theme.bg }}>
+      <Notifications notifications={notifications} onDismiss={dismissNotification} />
+
+      <SideMenu
+        activeSection={activeSection}
+        activePage={activePage}
+        onSectionChange={id => {
+          const section = SECTIONS.find(s => s.id === id);
+          if (section) setActivePage(section.pages[0].id);
+        }}
+        onPageChange={setActivePage}
+        badges={{ 'designer.preflight': preflightCount }}
+        pagesOpen={pagesOpen}
+        onTogglePages={() => setPagesOpen(o => !o)}
+        status={{ flowName, nodeCount: nodes.length, dirty }}
+        onOpenCommandPalette={() => setShowCommandPalette(true)}
+      />
+
+      <div style={{ flex: 1, display: 'flex', minWidth: 0, position: 'relative' }}>
+        {isCanvas ? (
+          <>
+            {/* Node palette drawer */}
+            {paletteOpen && (
+              <div
+                style={{
+                  width: 250,
+                  flex: '0 0 250px',
+                  background: theme.panel,
+                  color: theme.text,
+                  padding: 16,
+                  overflowY: 'auto',
+                  borderRight: `1px solid ${theme.border}`
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h2 style={{ marginTop: 0, fontSize: 15 }}>🎨 Node Palette</h2>
+                  <button onClick={() => setPaletteOpen(false)} style={ghostButton} title="Hide palette">
+                    «
+                  </button>
+                </div>
+                <input
+                  value={paletteQuery}
+                  onChange={(e) => setPaletteQuery(e.target.value)}
+                  placeholder="Search nodes…"
+                  title="Filter by name, description, or category. Drag a row onto the canvas, or click to place."
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 4,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.input,
+                    color: theme.text,
+                    fontSize: 13,
+                    marginBottom: 8
+                  }}
+                />
+                <div style={{ fontSize: 11, color: theme.muted, marginBottom: 12 }}>
+                  Drag onto canvas · or click to place
+                </div>
+
+                {['voice', 'chat', 'agentic', 'deterministic', 'control', 'governance', 'integration'].map(
+                  (category) => {
+                    const items = visiblePaletteItems.filter((item) => item.category === category);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={category} style={{ marginBottom: 16 }}>
+                        <h3 style={{ fontSize: 11, textTransform: 'uppercase', color: theme.muted }}>
+                          {category}
+                        </h3>
+                        {items.map((item) => (
+                          <div
+                            key={item.type}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('application/cx-node', item.type);
+                              e.dataTransfer.effectAllowed = 'copy';
+                            }}
+                            onClick={() => addNode(item.type)}
+                            title={`${item.label} — ${item.description}`}
+                            style={{
+                              padding: '8px 12px',
+                              marginBottom: 4,
+                              background: theme.panel2,
+                              borderRadius: 4,
+                              cursor: 'grab',
+                              fontSize: 13,
+                              border: `1px solid ${theme.border}`
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span>{item.icon}</span>
+                              <span>{item.label}</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: theme.muted, marginTop: 2, lineHeight: 1.35 }}>
+                              {item.description}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                )}
+                {visiblePaletteItems.length === 0 && (
+                  <div style={{ fontSize: 12, color: theme.muted, textAlign: 'center', marginTop: 16 }}>
+                    No nodes match “{paletteQuery}”.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <CanvasArea
+              flowName={flowName}
+              setFlowName={setFlowName}
+              flowVersion={flowVersion}
+              dirty={dirty}
+              preflightCount={preflightCount}
+              paletteOpen={paletteOpen}
+              onTogglePalette={() => setPaletteOpen(o => !o)}
+              onSave={saveFlow}
+              onRun={() => void executeFlow()}
+              onNavigate={setActivePage}
+              canvasRef={canvasRef}
+              displayNodes={displayNodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={(_, node) => setSelectedNode(node)}
+              onPaneClick={() => setSelectedNode(null)}
+              onInit={instance => {
+                flowInstance.current = instance;
+              }}
+              onDrop={onDropNode}
+              lastRun={lastRun}
+              nodeCount={nodes.length}
+            />
+          </>
+        ) : (
+          <PageFrame title={activePageMeta?.label || activePage}>
+            {PageComponent ? (
+              <PageComponent {...ctx} />
+            ) : (
+              renderDesignerPage()
+            )}
+          </PageFrame>
         )}
       </div>
 
-      {/* Config Panel */}
-      {selectedNode && selectedNodeDef && (
-        <div
+      {/* Config panel — only while designing */}
+      {isCanvas && selectedNode && selectedNodeDef && (
+        <aside
           style={{
             width: 320,
-            background: '#1a1a2e',
-            color: 'white',
+            flex: '0 0 320px',
+            background: theme.panel,
+            color: theme.text,
             padding: 16,
             overflowY: 'auto',
-            borderLeft: '1px solid #333'
+            borderLeft: `1px solid ${theme.border}`
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0, fontSize: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 15 }}>
               {selectedNodeDef.icon} {selectedNodeDef.label}
             </h2>
-            <button
-              onClick={() => setSelectedNode(null)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#888',
-                cursor: 'pointer',
-                fontSize: 18
-              }}
-            >
+            <button onClick={() => setSelectedNode(null)} style={{ ...ghostButton, border: 'none', fontSize: 16 }}>
               ×
             </button>
           </div>
-          
-          <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+
+          <p style={{ fontSize: 12, color: theme.muted, marginTop: 4 }}>
             {selectedNodeDef.description}
           </p>
-          
+
+          {!nodeValidation.valid && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 10,
+                borderRadius: 6,
+                background: 'rgba(239,68,68,0.10)',
+                border: '1px solid rgba(239,68,68,0.4)',
+                fontSize: 12,
+                color: theme.text
+              }}
+            >
+              {nodeValidation.errors.map((e, i) => (
+                <div key={i}>
+                  • <strong>{e.field}</strong>: {e.message}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ marginTop: 16 }}>
             <ConfigForm
               schema={selectedNodeDef.configSchema}
@@ -1009,39 +908,298 @@ const App: React.FC = () => {
             />
           </div>
 
-          <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #333' }}>
-            <h3 style={{ fontSize: 12, textTransform: 'uppercase', color: '#888' }}>
-              Inputs
-            </h3>
+          <div style={{ marginTop: 16 }}>
+            <Button
+              size="sm"
+              tone="ghost"
+              onClick={() => updateNodeConfig(selectedNode.id, {})}
+              title="Clear instance overrides — the node falls back to its type defaults"
+            >
+              Reset to defaults
+            </Button>
+          </div>
+
+          <div style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid ${theme.border}` }}>
+            <h3 style={{ fontSize: 11, textTransform: 'uppercase', color: theme.muted }}>Inputs</h3>
             {selectedNodeDef.inputs.map((input) => (
-              <div key={input.id} style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+              <div key={input.id} style={{ fontSize: 12, color: theme.muted, marginTop: 4 }}>
                 • {input.label} ({input.type})
-                {input.required && <span style={{ color: '#ef4444' }}> *</span>}
+                {input.required && <span style={{ color: theme.danger }}> *</span>}
               </div>
             ))}
-            
-            <h3 style={{ fontSize: 12, textTransform: 'uppercase', color: '#888', marginTop: 12 }}>
+
+            <h3 style={{ fontSize: 11, textTransform: 'uppercase', color: theme.muted, marginTop: 12 }}>
               Outputs
             </h3>
             {selectedNodeDef.outputs.map((output) => (
-              <div key={output.id} style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+              <div key={output.id} style={{ fontSize: 12, color: theme.muted, marginTop: 4 }}>
                 • {output.label} ({output.type})
               </div>
             ))}
           </div>
-        </div>
+        </aside>
       )}
+
+      <CommandPalette
+        open={showCommandPalette}
+        commands={commands}
+        onClose={() => setShowCommandPalette(false)}
+      />
+
+      {showOnboarding && <Onboarding onComplete={() => setShowOnboarding(false)} />}
     </div>
   );
 };
 
-const toolbarButtonStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  borderRadius: 4,
-  border: 'none',
-  color: 'white',
-  cursor: 'pointer',
-  fontSize: 14
-};
+/** Standard frame for page bodies that are not the canvas. */
+const PageFrame: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div style={{ flex: 1, minWidth: 0, position: 'relative', background: theme.bg, overflow: 'hidden' }}>
+    {children}
+    <span
+      style={{
+        position: 'absolute',
+        right: 14,
+        bottom: 10,
+        fontSize: 10,
+        color: theme.muted,
+        pointerEvents: 'none',
+        opacity: 0.6
+      }}
+    >
+      {title}
+    </span>
+  </div>
+);
+
+// ── Canvas workspace ─────────────────────────────────────────────────────
+
+interface CanvasAreaProps {
+  flowName: string;
+  setFlowName: (v: string) => void;
+  flowVersion: string;
+  dirty: boolean;
+  preflightCount: number;
+  paletteOpen: boolean;
+  onTogglePalette: () => void;
+  onSave: () => void;
+  onRun: () => void;
+  onNavigate: (pageId: string) => void;
+  canvasRef: React.RefObject<HTMLDivElement>;
+  displayNodes: Node[];
+  edges: Edge[];
+  onNodesChange: any;
+  onEdgesChange: any;
+  onConnect: (c: Connection) => void;
+  onNodeClick: (e: React.MouseEvent, node: Node) => void;
+  onPaneClick: () => void;
+  onInit: (instance: ReactFlowInstance) => void;
+  onDrop: (e: React.DragEvent) => void;
+  lastRun: { ok: boolean; latencyMs: number; cost: number; output: string } | null;
+  nodeCount: number;
+}
+
+const CanvasArea: React.FC<CanvasAreaProps> = ({
+  flowName,
+  setFlowName,
+  flowVersion,
+  dirty,
+  preflightCount,
+  paletteOpen,
+  onTogglePalette,
+  onSave,
+  onRun,
+  onNavigate,
+  canvasRef,
+  displayNodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onConnect,
+  onNodeClick,
+  onPaneClick,
+  onInit,
+  onDrop,
+  lastRun,
+  nodeCount
+}) => (
+  <div
+    ref={canvasRef}
+    onDrop={onDrop}
+    onDragOver={(e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }}
+    style={{ flex: 1, position: 'relative', minWidth: 0 }}
+  >
+    {/* Toolbar — identity, status, run. Everything else lives in the menu. */}
+    <div
+      style={{
+        position: 'absolute',
+        top: 12,
+        left: 12,
+        right: 12,
+        zIndex: 10,
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center'
+      }}
+    >
+      {!paletteOpen && (
+        <button onClick={onTogglePalette} style={{ ...ghostButton, background: theme.panel2 }} title="Show palette (P)">
+          🎨
+        </button>
+      )}
+      <input
+        value={flowName}
+        onChange={(e) => setFlowName(e.target.value)}
+        style={{
+          padding: '8px 12px',
+          borderRadius: 6,
+          border: `1px solid ${theme.border}`,
+          background: theme.input,
+          color: theme.text,
+          fontSize: 13,
+          width: 200
+        }}
+      />
+      <span style={{ fontSize: 11, color: theme.muted }}>v{flowVersion}</span>
+      <span style={{ fontSize: 11, color: dirty ? theme.warn : theme.success }}>
+        {dirty ? '● unsaved' : '✓ saved'}
+      </span>
+      <span style={{ fontSize: 11, color: theme.muted }}>
+        {nodeCount} node{nodeCount === 1 ? '' : 's'}
+      </span>
+
+      <div style={{ flex: 1 }} />
+
+      <button onClick={onSave} style={{ ...ghostButton, background: theme.panel2 }} title="Save (Ctrl+S)">
+        💾 Save
+      </button>
+      <button
+        onClick={() => onNavigate('designer.preflight')}
+        style={{
+          ...ghostButton,
+          background: preflightCount > 0 ? '#b45309' : theme.panel2,
+          color: preflightCount > 0 ? '#fff' : theme.text
+        }}
+        title={`Preflight lint — ${preflightCount} issue(s) (L)`}
+      >
+        ✈️ Preflight{preflightCount > 0 ? ` ${preflightCount}` : ''}
+      </button>
+      <button
+        onClick={() => onNavigate('designer.testconsole')}
+        style={{ ...ghostButton, background: theme.panel2 }}
+        title="Test console (Shift+Y)"
+      >
+        🧪 Test
+      </button>
+      <button
+        onClick={() => onNavigate('designer.builder')}
+        style={{ ...ghostButton, background: theme.panel2 }}
+        title="Builder chat (B)"
+      >
+        🤖 Builder
+      </button>
+      <button onClick={onRun} style={{ ...ghostButton, background: theme.success, color: '#052e1f', fontWeight: 600 }}>
+        ▶ Run
+      </button>
+    </div>
+
+    <ReactFlow
+      nodes={displayNodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      onNodeClick={onNodeClick}
+      onPaneClick={onPaneClick}
+      onInit={onInit}
+      fitView
+      style={{ paddingTop: 56 }}
+    >
+      <Background color="#333" gap={16} />
+      <Controls />
+      {nodeCount === 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '40%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+            color: theme.muted,
+            pointerEvents: 'none',
+            zIndex: 5
+          }}
+        >
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎛️</div>
+          <div style={{ fontSize: 14, marginBottom: 6 }}>Start here</div>
+          <div style={{ fontSize: 13, marginBottom: 14, maxWidth: 320, lineHeight: 1.6 }}>
+            Load a template, tell Builder Chat what you want, or drag nodes in from the palette.
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', pointerEvents: 'auto' }}>
+            <button onClick={() => onNavigate('designer.templates')} style={ghostButton}>
+              📚 Templates
+            </button>
+            <button onClick={() => onNavigate('designer.builder')} style={ghostButton}>
+              🤖 Describe it
+            </button>
+          </div>
+        </div>
+      )}
+      <MiniMap
+        nodeColor={(n) => {
+          const type = n.data?.type as NodeType;
+          const def = nodeRegistry.get(type);
+          return def?.color || '#666';
+        }}
+      />
+    </ReactFlow>
+
+    {/* Last run summary — the end-to-end answer, without opening a panel */}
+    {lastRun && (
+      <div
+        style={{
+          position: 'absolute',
+          left: 12,
+          bottom: 12,
+          zIndex: 20,
+          maxWidth: 520,
+          background: theme.panel,
+          border: `1px solid ${lastRun.ok ? theme.border : theme.danger}`,
+          borderRadius: 8,
+          padding: '10px 12px',
+          fontSize: 12,
+          color: theme.text
+        }}
+      >
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span>{lastRun.ok ? '✅' : '🛑'}</span>
+          <strong>{lastRun.ok ? 'Run complete' : 'Run failed'}</strong>
+          <span style={{ color: theme.muted }}>{lastRun.latencyMs} ms</span>
+          <span style={{ color: theme.muted }}>${lastRun.cost.toFixed(4)}</span>
+          <button onClick={() => onNavigate('designer.testconsole')} style={{ ...ghostButton, padding: '2px 8px', fontSize: 11 }}>
+            Trace
+          </button>
+        </div>
+        {lastRun.output && (
+          <div style={{ marginTop: 6, color: theme.muted, maxHeight: 48, overflow: 'hidden' }}>
+            {lastRun.output}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+);
 
 export default App;
+
+const ghostButton: React.CSSProperties = {
+  padding: '7px 12px',
+  borderRadius: 6,
+  border: `1px solid ${theme.border}`,
+  background: theme.panel2,
+  color: theme.text,
+  cursor: 'pointer',
+  fontSize: 12
+};
