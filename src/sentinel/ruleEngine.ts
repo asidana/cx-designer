@@ -26,6 +26,14 @@ export interface Rule {
   when: RuleCondition[];
   then: RuleAction;
   message: string;
+  /**
+   * Policy-managed configuration: merged into session state when the
+   * rule matches (e.g. { model: 'gpt-4o-mini', costCeiling: 0.1,
+   * voiceMode: 'cascaded' }). Lets policy govern configuration —
+   * model choice, ceilings, provider routing — per caller/tenant,
+   * without touching flow JSON.
+   */
+  set?: Record<string, unknown>;
 }
 
 export interface RuleDecision {
@@ -33,6 +41,8 @@ export interface RuleDecision {
   action: 'allow' | 'block' | 'redact' | 'escalate';
   matchedRule?: string;
   message?: string;
+  /** config updates from the matched rule's `set` clause */
+  set?: Record<string, unknown>;
 }
 
 function resolvePath(state: Record<string, unknown>, path: string): unknown {
@@ -94,7 +104,8 @@ export function evaluateRules(
       allowed: rule.then === 'allow' || rule.then === 'redact',
       action: rule.then,
       matchedRule: rule.id,
-      message: rule.message
+      message: rule.message,
+      set: rule.set
     };
   }
   return { allowed: true, action: 'allow' };

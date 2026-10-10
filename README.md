@@ -166,6 +166,7 @@ Full reference: [docs/API.md](docs/API.md).
 | [docs/SIMULATION.md](docs/SIMULATION.md) | Mock multi-turn call simulations on IndexedDB |
 | [docs/EXPERIENCE_BOTS.md](docs/EXPERIENCE_BOTS.md) | Live S2S experience bots: keys, probes, mock→live path |
 | [docs/SENTINEL.md](docs/SENTINEL.md) | Sentinel agent gateway: phases, rule engine, PII/injection |
+| [docs/STREAMLINK.md](docs/STREAMLINK.md) | StreamLink telephony gateway: SIP/WebSocket/gRPC to CCaaS |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and fixes |
 
 ## Architecture

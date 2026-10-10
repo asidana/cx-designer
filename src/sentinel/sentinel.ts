@@ -18,10 +18,13 @@ import {
   evaluateRules,
   DEFAULT_MONEY_RULES
 } from './ruleEngine';
+import { redactPhi } from './phi';
 
 export interface SentinelConfig {
   rules?: Rule[];
   piiRedaction?: boolean;
+  /** healthcare identifiers (DOB, phone, MRN, member IDs) — default on */
+  phiRedaction?: boolean;
   injectionScan?: boolean;
   rateLimit?: { max: number; windowMs: number };
   failClosed?: boolean;
@@ -51,6 +54,8 @@ export interface SentinelResult {
   action: 'allow' | 'block' | 'redact' | 'escalate';
   violations: SentinelViolation[];
   redactedContent: string;
+  /** policy-managed config from the matched rule's `set` clause */
+  configUpdates?: Record<string, unknown>;
 }
 
 const PII_PATTERNS: Array<{ regex: RegExp; replacement: string; label: string }> = [
@@ -85,6 +90,7 @@ export class Sentinel {
     this.config = {
       rules: config.rules ?? DEFAULT_MONEY_RULES,
       piiRedaction: config.piiRedaction ?? true,
+      phiRedaction: config.phiRedaction ?? true,
       injectionScan: config.injectionScan ?? true,
       rateLimit: config.rateLimit,
       failClosed: config.failClosed ?? true
@@ -135,10 +141,10 @@ export class Sentinel {
           message: decision.message || 'Escalation required.',
           ruleId: decision.matchedRule
         });
-        return { allowed: false, action: 'escalate', violations, redactedContent: content };
+        return { allowed: false, action: 'escalate', violations, redactedContent: content, configUpdates: decision.set };
       }
 
-      // 3. PII redaction (before logs, audit trails, third-party LLM calls)
+      // 3. PII + PHI redaction (before logs, audit trails, third-party LLM calls)
       if (this.config.piiRedaction) {
         for (const p of PII_PATTERNS) {
           if (p.regex.test(content)) {
@@ -149,6 +155,17 @@ export class Sentinel {
             });
             content = content.replace(p.regex, p.replacement);
           }
+        }
+      }
+      if (this.config.phiRedaction) {
+        const phi = redactPhi(content);
+        if (phi.found.length > 0) {
+          violations.push({
+            type: 'pii',
+            severity: 'low',
+            message: `Redacted PHI: ${phi.found.join(', ')}.`
+          });
+          content = phi.redacted;
         }
       }
 
@@ -170,7 +187,7 @@ export class Sentinel {
       }
 
       const action = decision.action === 'redact' ? 'redact' : 'allow';
-      return { allowed: true, action, violations, redactedContent: content };
+      return { allowed: true, action, violations, redactedContent: content, configUpdates: decision.set };
     } catch (e) {
       const violations: SentinelViolation[] = [
         {

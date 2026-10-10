@@ -53,6 +53,7 @@ See `docs/SENTINEL.md` for the Sentinel gateway, rule engine, and phase model.
 |------|-------|------------------|---------|
 | `integration.http` | HTTP Request | `input` → `response`, `status` | REST calls with `{{variable}}` substitution, bearer/API-key auth, timeout, retries |
 | `integration.telephony` | Telephony | `input` → `callId`, `status` | SIP/PSTN/WebRTC via Twilio/Plivo/Vonage/custom, inbound/outbound, recording, IVR |
+| `integration.streamlink` | StreamLink | `input` → `callId`, `status` | Expose the agent over SIP/WebSocket/gRPC to CCaaS (Genesys/Five9/Avaya/Connect); RFC2833 DTMF, transfers, PCI recording pause |
 | `integration.webhook` | Webhook | `input` → `response` | Incoming or outgoing webhooks with secret verification |
 | `integration.database` | Database | `input` → `result` | PostgreSQL/DynamoDB/Redis/MySQL query/insert/update/delete |
 

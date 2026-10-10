@@ -1,7 +1,21 @@
 # Sentinel — Agent Gateway
 
-Sentinel is the protective gateway every request passes through before it
-reaches the agent, tools, or caller. One pipeline, four phases:
+Sentinel is the protective gateway around **agents** — not an LLM gateway.
+The division of ownership is strict:
+
+- **Agents** own business logic and use cases.
+- **Sentinel** owns protection: policy, PII/PHI, injection defense, rate
+  limits, approvals.
+- **StreamLink** owns transport: SIP/WebSocket/gRPC legs into CCaaS and
+  telephony (see `docs/STREAMLINK.md`).
+
+```
+outside world ──▶ StreamLink ──▶ Sentinel ──▶ agent
+  (SIP/WS/gRPC)    (transport)    (policy)    (business logic)
+```
+
+Every request passes through Sentinel before it reaches the agent,
+tools, or caller. One pipeline, four phases:
 
 ```
 rate limit → rule engine → PII redaction → injection scan

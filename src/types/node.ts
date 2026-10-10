@@ -45,6 +45,7 @@ export type NodeType =
   | 'integration.database'
   | 'integration.webhook'
   | 'integration.telephony'
+  | 'integration.streamlink'
   // Gateway
   | 'gateway.mcp'
   | 'gateway.custom';

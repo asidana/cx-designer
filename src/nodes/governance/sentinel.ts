@@ -15,6 +15,7 @@ interface SentinelNodeConfig {
   phase: SentinelPhase;
   rules: Rule[];
   piiRedaction: boolean;
+  phiRedaction: boolean;
   injectionScan: boolean;
   failClosed: boolean;
 }
@@ -64,6 +65,13 @@ export const sentinelNode: NodeDefinition = {
       default: true
     },
     {
+      name: 'phiRedaction',
+      label: 'PHI Redaction (healthcare)',
+      type: 'boolean',
+      default: true,
+      description: 'Redact DOB, phones, MRNs, member IDs'
+    },
+    {
       name: 'injectionScan',
       label: 'Injection Scan',
       type: 'boolean',
@@ -89,6 +97,7 @@ export const sentinelNode: NodeDefinition = {
     const sentinel = new Sentinel({
       rules: config.rules && config.rules.length > 0 ? config.rules : undefined,
       piiRedaction: config.piiRedaction,
+      phiRedaction: config.phiRedaction,
       injectionScan: config.injectionScan,
       failClosed: config.failClosed
     });

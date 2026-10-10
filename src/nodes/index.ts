@@ -22,6 +22,7 @@ import { conditionalRouterNode } from './control/conditionalRouter';
 import { telephonyNode } from './integration/telephonyNode';
 import { webhookNode } from './integration/webhookNode';
 import { databaseNode } from './integration/databaseNode';
+import { streamlinkNode } from './integration/streamlink';
 import { subflowNode } from './control/subflowNode';
 import { parallelNode } from './control/parallelNode';
 import { waitNode } from './control/waitNode';
@@ -58,6 +59,7 @@ export function registerBuiltInNodes(): void {
   nodeRegistry.register(telephonyNode);
   nodeRegistry.register(webhookNode);
   nodeRegistry.register(databaseNode);
+  nodeRegistry.register(streamlinkNode);
 }
 
 // Auto-register on import

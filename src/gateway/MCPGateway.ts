@@ -11,6 +11,7 @@
 import { FlowGraph, FlowNode, FlowEdge } from '../types/node';
 import { FlowEngine } from '../engine/flowEngine';
 import { Sentinel } from '../sentinel/sentinel';
+import { AgentRouter } from '../sentinel/agentRouter';
 
 export interface MCPTool {
   name: string;
@@ -36,6 +37,7 @@ export class MCPGateway {
   private config: MCPServerConfig;
   private server: any;
   private sentinel: Sentinel | null = null;
+  private agentRouter: AgentRouter | null = null;
 
   constructor(flow: FlowGraph, config: Partial<MCPServerConfig> = {}) {
     this.flow = flow;
@@ -72,6 +74,36 @@ export class MCPGateway {
    */
   setSentinel(sentinel: Sentinel | null): void {
     this.sentinel = sentinel;
+  }
+
+  /**
+   * Attach an agent router: `delegateToAgent` lets flows call
+   * registered sub-agents through the Sentinel pre_tool gate.
+   */
+  setAgentRouter(router: AgentRouter | null): void {
+    this.agentRouter = router;
+  }
+
+  /**
+   * Delegate a task to a registered sub-agent (gated, audited).
+   * Requires both a router and a Sentinel; otherwise throws.
+   */
+  async delegateToAgent(
+    from: string,
+    to: string,
+    task: string,
+    session: Record<string, unknown> = {}
+  ): Promise<unknown> {
+    if (!this.agentRouter) throw new Error('No agent router attached.');
+    if (!this.sentinel) throw new Error('Agent delegation requires a Sentinel.');
+    const result = await this.agentRouter.delegate(from, to, task, session, this.sentinel);
+    if (!result.allowed) {
+      throw new Error(
+        `Delegation ${from} → ${to} ${result.action}: ` +
+          result.violations.map(v => v.message).join('; ')
+      );
+    }
+    return { response: result.response, audit: result.audit };
   }
 
   /**
