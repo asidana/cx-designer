@@ -182,7 +182,7 @@ export class WebMcpServer {
         return send({
           protocolVersion: this.protocolVersion,
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: 'omnichannel-agent-mcp', version: '1.0.0' }
+          serverInfo: { name: 'agentic-cx-designer-mcp', version: '1.0.0' }
         });
       }
       case 'notifications/initialized':

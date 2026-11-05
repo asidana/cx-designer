@@ -3,6 +3,13 @@
 The whole canvas feature lives in **`src/designer/`** and is one React component.
 This repo is the standalone host; a larger product embeds the same component.
 
+> **Packaging note:** `package.json` resolves the package root (`.`) to the
+> TypeScript entry (`src/designer/index.ts`) — a source-level export. Hosts
+> that bundle TS sources (Vite, Next.js with transpilePackages, monorepo
+> aliases like `agentic-cx-designer: ./agentic-cx-designer`) can consume it
+> directly. If the host cannot transpile TS, add a build step (e.g.
+> `tsup`) before publishing.
+
 ## Quick start
 
 ```tsx

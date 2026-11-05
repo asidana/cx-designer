@@ -61,3 +61,4 @@ data/
 # Misc
 *.bak
 *.tmp
+.playwright-cli/

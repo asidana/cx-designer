@@ -25,8 +25,10 @@ The product is refocused on the canvas feature only, made whole and embeddable.
 - All flow state extracted from the app-shell monolith into
   `CanvasDesigner.tsx` (palette, config panel, history, autosave, dirty
   tracking, run pipeline).
-- Autosave keys renamed to `agentic_cx_designer_*`; platform workspace/RBAC/
-  plugins/protocol/consoles Removed from the feature.
+- Autosave keys renamed to `agentic_cx_designer_*` and the IndexedDB durable
+  store to `agentic-cx-designer-config` — earlier platform-era stored sessions
+  are not carried over; platform workspace/RBAC/plugins/protocol/consoles
+  removed from the feature.
 
 ### Removed
 - Nine-section shell, navigation, pages, test console, protocol console,

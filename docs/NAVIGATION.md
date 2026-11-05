@@ -1,5 +1,10 @@
 # Navigation — the shell
 
+> **Status: historical.** This document describes the platform-era nine-section
+> shell, which was removed when the product was refocused on the embeddable
+> canvas (see [EMBEDDING.md](EMBEDDING.md)). The canvas feature no longer has
+> a side menu; its drawers are toggled from the toolbar. Kept for reference.
+
 The app is nine sections. Each section owns its own pages. Everything the
 designer does is reachable from the side menu, and `Ctrl+K` reaches the same
 things from the keyboard.
@@ -137,8 +142,8 @@ Single-key shortcuts are ignored while you are typing in a field.
   Help → Shortcuts all read it. Adding a page is a model edit.
 - `src/navigation/search.ts` — ranking for the command palette
   (subsequence match with word-boundary bonuses).
-- `src/components/SideMenu.tsx` — the two-level rail.
-- `src/components/CommandPalette.tsx` — the palette, grouped and keyboard-driven.
+- `src/designer/components/SideMenu.tsx` — the two-level rail.
+- `src/designer/components/CommandPalette.tsx` — the palette, grouped and keyboard-driven.
 - `src/pages/*` — one file per section; `src/pages/registry.ts` maps page id to
   component. Designer pages render inside `App.tsx` because they close over the
   engine callbacks.

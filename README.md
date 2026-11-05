@@ -40,119 +40,86 @@ server/            ← optional FastAPI persistence backend (not required by the
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 20+
-- Python 3.11+
-- Docker + Docker Compose
-- PostgreSQL 15+
-- Redis 7+
-
-### Docker (Recommended)
-
 ```bash
-# Clone
-git clone https://github.com/your-org/agentic-cx-designer.git
-cd agentic-cx-designer
-
-# Configure
-cp .env.example .env
-# Edit .env with your API keys
-
-# Start
-docker-compose up -d
-
-# Open
-open http://localhost:3000
+npm install
+npm run dev        # → http://localhost:5173
+npm test           # 125 tests
+npm run build      # tsc + vite production build
 ```
 
-### Local Development
+No database or backend required — the canvas runs entirely in the browser
+(local-first storage: IndexedDB + localStorage). The optional FastAPI backend
+in `server/` (Python, Docker) is kept for later platform integration and is
+not needed by the canvas.
 
-```bash
-# Frontend
-cd agentic-cx-designer
-pnpm install
-pnpm dev
-
-# Backend (separate terminal)
-cd server
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-
-# Database
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15
-docker run -d -p 6379:6379 redis:7
-```
-
-## Node Types
+## Node Types (27 registered)
 
 | Category | Nodes |
 |----------|-------|
-| **Voice** | Voice Input, Voice Output, Turn Detection, Audio Preprocessing |
-| **Agentic** | Intent Classifier, Reasoning Loop, Planning, RAG, Memory, LangGraph, Strands, ADK |
-| **Deterministic** | Slot Collector, Business Rules, Compliance Script, Data Request, Human Handoff |
-| **Control Flow** | Conditional Router, Parallel Branch, Loop, Wait, Sub-flow |
-| **Governance** | Guardrail, Eval Checkpoint, Audit Logger, Cost Tracker |
-| **Integration** | HTTP Request, MCP Tool, Database, Webhook, Telephony |
-| **Gateway** | MCP Gateway, Custom HTTP Gateway |
+| **Voice** | Voice Input, Voice Output |
+| **Chat** | Chat Input, Chat Output, Page Assistant |
+| **Agentic** | Intent Classifier, Reasoning Loop, Website Sync, Knowledge Retrieval, Memory, Copilot Action, Self-Help Answer, A2A Skill, LangGraph Agent, Strands Agent, ADK Agent |
+| **Deterministic** | Slot Collector, Business Rule, Human Handoff |
+| **Control** | Conditional Router, Sub-flow, Agent Pattern (composite), Parallel, Wait |
+| **Governance** | Guardrail, Agent Firewall |
+| **Integration** | HTTP Request, Telephony, Webhook, Database, Voice Gateway |
+| **Gateway** | MCP Tool |
 
 ## Framework Adapters
 
-| Framework | Adapter | Status |
-|-----------|---------|--------|
-| LangGraph | `agentic.langgraph` | ✅ |
-| AWS Strands | `agentic.strands` | ✅ |
-| AWS ADK | `agentic.adk` | ✅ |
-| LangChain | `agentic.langchain` | ✅ |
-| AutoGen | `agentic.autogen` | ✅ |
-| CrewAI | `agentic.crewai` | ✅ |
-| PydanticAI | `agentic.pydanticai` | 📋 |
-| LlamaIndex | `agentic.llamaindex` | 📋 |
+| Framework | Type | Status |
+|-----------|------|--------|
+| LangGraph | `agentic.langgraph` | ✅ registered node + Python export |
+| AWS Strands | `agentic.strands` | ✅ registered node |
+| AWS ADK | `agentic.adk` | ✅ registered node |
+| LangChain / AutoGen / CrewAI | — | 📋 planned (roadmap) |
 
 ## Custom Nodes
 
-```typescript
-import { CustomNodeSDK } from './sdk/CustomNodeSDK';
+Author custom nodes with a behaviour preset (`http` / `llm` / `transform` /
+`guardrail`) from `nodes/custom.ts`, then hand them to the canvas via the
+`customNodes` prop (they are namespaced `custom.` so they can never shadow a
+built-in):
 
-CustomNodeSDK.register({
-  type: 'my.custom_node',
+```tsx
+import { CanvasDesigner } from 'agentic-cx-designer';
+import { BEHAVIOR_PRESETS, customNodeDefinition } from 'agentic-cx-designer';
+// see src/designer/nodes/custom.ts for the CustomNodeRecord shape
+
+const myNode = {
+  id: 'record_1',
+  type: 'custom.weather_lookup',
+  label: 'Weather Lookup',
+  description: 'Fetch weather for the caller’s city',
   category: 'integration',
-  label: 'My Custom Node',
-  description: 'Does something custom',
-  icon: '🔧',
-  color: '#ff6b6b',
-  inputs: [{ id: 'input', type: 'text', label: 'Input' }],
-  outputs: [{ id: 'output', type: 'text', label: 'Output' }],
+  icon: '🌤️',
+  color: '#6366f1',
+  behavior: 'http',                    // ← preset drives I/O + execution
+  inputs: BEHAVIOR_PRESETS.find(p => p.id === 'http')!.inputs,
+  outputs: BEHAVIOR_PRESETS.find(p => p.id === 'http')!.outputs,
+  config: { url: 'https://api.weather.example/current' },
   configSchema: [
-    { name: 'apiKey', label: 'API Key', type: 'password', required: true }
+    { name: 'city', label: 'City field', type: 'string', required: true }
   ],
-  execute: async (context) => {
-    const input = context.variables.get('input');
-    // Your custom logic here
-    return {
-      outputs: { output: `Processed: ${input}` },
-      nextNodes: [],
-      variableUpdates: {},
-      guardrailViolations: [],
-      auditEvents: []
-    };
-  }
-});
+  version: 1
+};
+
+<CanvasDesigner customNodes={[myNode]} />
 ```
 
-## AI Flow Generator
+## AI Flow Generator (Builder chat)
 
 ```typescript
-import { FlowGenerator } from './ai/FlowGenerator';
+import { FlowGenerator } from 'agentic-cx-designer';
 
 const result = await FlowGenerator.generate({
-  description: 'Create a customer support voice agent that handles billing inquiries...',
+  description: 'Create a customer support voice agent that handles billing inquiries…',
   channel: 'voice'
 });
 
-console.log(result.flow); // Complete flow definition
-console.log(result.explanation); // What was built
-console.log(result.suggestions); // Improvement suggestions
+result.flow;          // Complete FlowGraph definition
+result.explanation;   // What was built
+result.suggestions;   // Improvement suggestions
 ```
 
 ## API Endpoints
@@ -173,46 +140,39 @@ console.log(result.suggestions); // Improvement suggestions
 | WS | `/ws/test/{flow_id}` | Real-time testing |
 | GET | `/health` | Health check |
 
-Full reference: [docs/API.md](docs/API.md).
+Full reference for the optional backend: [docs/API.md](docs/API.md).
 
 ## Documentation
 
 | Doc | Contents |
 |-----|----------|
-| [docs/NAVIGATION.md](docs/NAVIGATION.md) | The nine sections, their pages and every keyboard shortcut |
-| [docs/API.md](docs/API.md) | Full API reference (flows, builds, deployments, evals, WebSocket, health) |
-| [docs/NODES.md](docs/NODES.md) | Node catalog — all built-in node types by category |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Environment variable reference |
-| [docs/TESTING.md](docs/TESTING.md) | Testing guide (frontend, backend, CI, budgets) |
-| [docs/SIMULATION.md](docs/SIMULATION.md) | Mock multi-turn call simulations on IndexedDB |
-| [docs/EXPERIENCE_BOTS.md](docs/EXPERIENCE_BOTS.md) | Live S2S experience bots: keys, probes, mock→live path |
-| [docs/AGENT_FIREWALL.md](docs/AGENT_FIREWALL.md) | Agent Firewall: policy gateway, rule engine, PII/PHI, injection |
-| [docs/VOICE_GATEWAY.md](docs/VOICE_GATEWAY.md) | Voice Gateway: SIP trunking/WebSocket/gRPC to CCaaS |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and fixes |
+| [docs/EMBEDDING.md](docs/EMBEDDING.md) | **Start here** — the embedding contract for the `<CanvasDesigner />` component |
+| [docs/NODES.md](docs/NODES.md) | Node catalog — built-in node types by category |
+| [docs/API.md](docs/API.md) | Optional FastAPI backend reference |
+| [docs/TESTING.md](docs/TESTING.md) | Testing guide |
+| [docs/SIMULATION.md](docs/SIMULATION.md) | Mock multi-turn simulations on IndexedDB |
+| [docs/AGENT_FIREWALL.md](docs/AGENT_FIREWALL.md) | Agent Firewall node: policy gateway, rule engine, PII/PHI |
+
+Other docs in `docs/` (NAVIGATION, EXPERIENCE_BOTS, VOICE_GATEWAY,
+CONFIGURATION, TROUBLESHOOTING) are platform-era documents kept for
+reference; they describe features that now live in
+`omnichannel-agent-platform`.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Frontend (React + React Flow)                          │
-│  - Canvas, Palette, Config Panel                        │
-│  - Test Console, Analytics Overlay                      │
-│  - AI Generator, Flow IO                                │
-└─────────────────────────────────────────────────────────┘
-                          │ REST + WebSocket
-┌─────────────────────────────────────────────────────────┐
-│  Backend (FastAPI + PostgreSQL + Redis)                 │
-│  - Flow CRUD, Build, Deployment                         │
-│  - Eval Engine, WebSocket Testing                       │
-│  - Auth, Multi-tenant                                   │
-└─────────────────────────────────────────────────────────┘
-                          │
-┌─────────────────────────────────────────────────────────┐
-│  Execution Engine                                       │
-│  - DAG Execution, Voice-Aware Loop                      │
-│  - Framework Adapters (LangGraph, Strands, ADK)         │
-│  - Guardrails, Gateway                                  │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│  <CanvasDesigner /> (React + React Flow, all client-side) │
+│  ─ Canvas (cx node cards) · Palette · Config panel        │
+│  ─ FlowEngine simulation · trace pulses · run summary     │
+│  ─ Validation · Preflight · Script · Flow I/O             │
+│  ─ Versions · Builder chat · History · Autosave           │
+└───────────────────────────────────────────────────────────┘
+              │ optional REST + WebSocket (host chooses)
+┌───────────────────────────────────────────────────────────┐
+│  server/ (optional FastAPI + PostgreSQL)                  │
+│  ─ Flow CRUD, Build, Deployment, eval suites              │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ## License

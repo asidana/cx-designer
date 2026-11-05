@@ -4,7 +4,7 @@
 
 **`vite: command not found`** — dependencies not installed. Run `npm install` (or `pnpm install`) in the project root, then `npm run dev`.
 
-**Blank canvas / React Flow errors** — check the browser console. The usual cause is a node type in the flow JSON with no registered definition in `src/nodes/index.ts`.
+**Blank canvas / React Flow errors** — check the browser console. The usual cause is a node type in the flow JSON with no registered definition in `src/designer/nodes/index.ts`.
 
 **Port 3000 in use** — set `PORT` to a free port, or stop the process holding 3000.
 
@@ -21,7 +21,7 @@ docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15
 
 ## Tests
 
-**Frontend test failures after adding a node** — the new node must be registered in `src/nodes/index.ts`; adapter tests assert registry contents.
+**Frontend test failures after adding a node** — the new node must be registered in `src/designer/nodes/index.ts`; adapter tests assert registry contents.
 
 **Backend test DB errors** — tests expect Postgres on `5432` and Redis on `6379` (see TESTING.md). CI provides both as services.
 

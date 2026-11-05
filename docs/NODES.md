@@ -1,6 +1,6 @@
 # Node Catalog
 
-All built-in node types, grouped by palette category. Node definitions live in `src/nodes/`, registered in `src/nodes/index.ts`.
+All built-in node types, grouped by palette category. Node definitions live in `src/designer/nodes/`, registered in `src/designer/nodes/index.ts`.
 
 ## Voice
 
@@ -67,4 +67,4 @@ See `docs/AGENT_FIREWALL.md` for the firewall, rule engine, and phase model. (`s
 
 ## Adding a Node
 
-Implement `NodeDefinition` (`src/types/node.ts`), register it in `src/nodes/index.ts`, and cover it in `tests/`. See CONTRIBUTING.md.
+Implement `NodeDefinition` (`src/designer/types/node.ts`), register it in `src/designer/nodes/index.ts`, and cover it in `tests/`. See CONTRIBUTING.md.

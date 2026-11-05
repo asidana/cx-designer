@@ -19,7 +19,7 @@
  * caller keeps a working in-memory session either way.
  */
 
-const DB_NAME = 'omnichannel-agent-config';
+const DB_NAME = 'agentic-cx-designer-config';
 const DB_VERSION = 1;
 const STORE = 'kv';
 
