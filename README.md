@@ -2,7 +2,7 @@
 
 A self-contained, **embeddable drag-and-drop agent flow canvas** — the builder feature from the omnichannel agent platform, extracted to stand alone (and drop back into a larger product later).
 
-![Agentic CX Designer](https://img.shields.io/badge/version-0.1.0-blue)
+![Agentic CX Designer](https://img.shields.io/badge/version-0.2.0-blue)
 
 ## What this is (post-restructure)
 
