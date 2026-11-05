@@ -1,52 +1,26 @@
-# Agentic CX Designer — Dockerfile
+# Agentic CX Designer — static image.
+#
+# The canvas is fully client-side (local-first storage), so the image is
+# just the Vite build served by nginx. The optional FastAPI backend in
+# server/ is not part of this image; deploy it separately if a host needs
+# server-side persistence.
 
-# Frontend build stage
-FROM node:20-alpine AS frontend-builder
+# Build stage
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
-RUN pnpm build
+RUN npm run build
 
-# Backend build stage
-FROM python:3.11-slim AS backend-builder
+# Serve stage
+FROM nginx:alpine AS production
 
-WORKDIR /app/server
+COPY --from=build /app/dist /usr/share/nginx/html
 
-COPY server/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+EXPOSE 80
 
-COPY server/ .
-
-# Production stage
-FROM node:20-alpine AS production
-
-WORKDIR /app
-
-# Install Python for backend
-RUN apk add --no-cache python3 py3-pip
-
-# Copy frontend build
-COPY --from=frontend-builder /app/dist ./dist
-
-# Copy backend
-COPY --from=backend-builder /app/server ./server
-
-# Install backend dependencies
-COPY server/requirements.txt ./server/
-RUN pip3 install --no-cache-dir -r ./server/requirements.txt
-
-# Install serve for frontend
-RUN npm install -g serve
-
-# Expose ports
-EXPOSE 3000 8000
-
-# Start script
-COPY docker-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

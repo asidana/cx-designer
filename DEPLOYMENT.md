@@ -1,84 +1,53 @@
 # Deployment Guide
 
-## Docker Compose (Development)
+The canvas is a **static client-side app**. Deployment = build `dist/` and
+serve it.
+
+## Docker (recommended)
 
 ```bash
-docker-compose up -d
-docker-compose logs -f
-docker-compose down
+docker compose up -d --build
+# → http://localhost:3000
 ```
 
-## Kubernetes (Production)
+`Dockerfile` is a two-stage build: `npm ci && npm run build`, then nginx
+serving `dist/`. No backend, database or environment variables are required.
 
-### Prerequisites
-
-- kubectl configured
-- Helm (optional)
-- Ingress controller (nginx)
-- cert-manager (for TLS)
-
-### Deploy
+## Static hosting
 
 ```bash
-# Create namespace
-kubectl apply -f k8s/namespace.yaml
-
-# Create secrets
-kubectl apply -f k8s/secrets.yaml
-
-# Create config
-kubectl apply -f k8s/configmap.yaml
-
-# Deploy application
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-kubectl apply -f k8s/ingress.yaml
-kubectl apply -f k8s/hpa.yaml
+npm ci
+npm run build
+# serve dist/ with any static host (nginx, CloudFront, Vercel, GitHub Pages…)
 ```
 
-### Verify
+Point all routes at `index.html` (single-page app).
+
+## Embedding into a larger product
+
+Import the component directly instead of hosting the standalone demo:
+
+```tsx
+import { CanvasDesigner } from 'agentic-cx-designer';
+<CanvasDesigner onChange={persistFlow} />
+```
+
+See [docs/EMBEDDING.md](docs/EMBEDDING.md).
+
+## Optional backend
+
+`server/` holds an early FastAPI + PostgreSQL persistence API. Run it
+independently if the host needs server-side flow storage:
 
 ```bash
-kubectl get pods -n agentic-cx
-kubectl get svc -n agentic-cx
-kubectl get ingress -n agentic-cx
+cd server
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
 ```
 
-## Terraform (AWS)
+## Legacy infrastructure
 
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection |
-| `REDIS_URL` | Redis connection |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `JWT_SECRET` | JWT signing secret |
-| `CORS_ORIGINS` | Allowed CORS origins |
-
-## Scaling
-
-- HPA: 3-10 replicas based on CPU/memory
-- Database: RDS with read replicas
-- Cache: Redis cluster mode
-- CDN: CloudFront for static assets
-
-## Monitoring
-
-- Prometheus metrics: `/metrics`
-- Health check: `/health`
-- Grafana dashboards: Import from `monitoring/grafana/`
-
-## Backup
-
-- RDS: Automated daily backups
-- Redis: Snapshot every 6 hours
-- Flows: Export to S3
+`k8s/` and `terraform/` describe the old platform deployment (backend +
+database + Redis). They are kept for reference while the feature is folded
+back into `omnichannel-agent-platform` and are **not** part of this release's
+deployment path.

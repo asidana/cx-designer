@@ -1,105 +1,48 @@
-.PHONY: help install dev build test lint clean docker-build docker-run k8s-deploy
+.PHONY: help install dev build test lint clean docker-build docker-run docker-stop docker-logs
 
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  install      - Install all dependencies"
-	@echo "  dev          - Start development servers"
-	@echo "  build        - Build for production"
-	@echo "  test         - Run all tests"
-	@echo "  lint         - Run linters"
-	@echo "  clean        - Clean build artifacts"
-	@echo "  docker-build - Build Docker image"
+	@echo "  install      - Install dependencies (npm ci)"
+	@echo "  dev          - Start the Vite dev server"
+	@echo "  build        - Production build (tsc + vite)"
+	@echo "  test         - Run the test suite (non-watch)"
+	@echo "  lint         - ESLint"
+	@echo "  clean        - Remove build artifacts and node_modules"
+	@echo "  docker-build - Build the static canvas image"
 	@echo "  docker-run   - Run with Docker Compose"
-	@echo "  k8s-deploy   - Deploy to Kubernetes"
+	@echo "  docker-stop  - Stop Docker Compose"
+	@echo "  docker-logs  - Follow container logs"
+# The optional FastAPI backend (server/) is managed separately; see
+# docs/API.md. k8s/ and terraform/ are legacy platform infrastructure
+# kept for reference — not part of the canvas release.
 
-# Install dependencies
 install:
-	@echo "Installing frontend dependencies..."
-	npm install
-	@echo "Installing backend dependencies..."
-	cd server && pip install -r requirements.txt
+	npm ci
 
-# Development
 dev:
-	@echo "Starting development servers..."
-	@make -j2 dev-frontend dev-backend
-
-dev-frontend:
 	npm run dev
 
-dev-backend:
-	cd server && uvicorn main:app --reload --port 8000
-
-# Build
 build:
-	@echo "Building frontend..."
 	npm run build
-	@echo "Building backend..."
-	cd server && python -m compileall .
 
-# Test
 test:
-	@echo "Running frontend tests..."
-	npm test -- --run
-	@echo "Running backend tests..."
-	cd server && pytest tests/ -v
+	npm test
 
-# Lint
 lint:
-	@echo "Linting frontend..."
 	npm run lint
-	@echo "Linting backend..."
-	cd server && flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-# Clean
 clean:
-	rm -rf dist/
-	rm -rf node_modules/
-	rm -rf server/__pycache__/
-	rm -rf server/**/__pycache__/
-	rm -rf .pytest_cache/
-	rm -rf coverage/
+	rm -rf dist/ node_modules/ server/__pycache__/ .pytest_cache/ coverage/
 
-# Docker
 docker-build:
 	docker build -t agentic-cx-designer:latest .
 
 docker-run:
-	docker-compose up -d
+	docker compose up -d
 
 docker-stop:
-	docker-compose down
+	docker compose down
 
 docker-logs:
-	docker-compose logs -f
-
-# Kubernetes
-k8s-deploy:
-	kubectl apply -f k8s/namespace.yaml
-	kubectl apply -f k8s/secrets.yaml
-	kubectl apply -f k8s/configmap.yaml
-	kubectl apply -f k8s/deployment.yaml
-	kubectl apply -f k8s/service.yaml
-	kubectl apply -f k8s/ingress.yaml
-	kubectl apply -f k8s/hpa.yaml
-
-k8s-delete:
-	kubectl delete -f k8s/
-
-k8s-status:
-	kubectl get pods -l app=agentic-cx-designer
-	kubectl get svc -l app=agentic-cx-designer
-	kubectl get ingress -l app=agentic-cx-designer
-
-# Database
-db-migrate:
-	cd server && alembic upgrade head
-
-db-rollback:
-	cd server && alembic downgrade -1
-
-# Production
-prod: build
-	@echo "Starting production server..."
-	cd server && uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+	docker compose logs -f

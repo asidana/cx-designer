@@ -2,7 +2,7 @@
 
 ## Frontend Won't Start
 
-**`vite: command not found`** — dependencies not installed. Run `npm install` (or `pnpm install`) in the project root, then `npm run dev`.
+**`vite: command not found`** — dependencies not installed. Run `npm ci` (or `npm install`) in the project root, then `npm run dev`.
 
 **Blank canvas / React Flow errors** — check the browser console. The usual cause is a node type in the flow JSON with no registered definition in `src/designer/nodes/index.ts`.
 

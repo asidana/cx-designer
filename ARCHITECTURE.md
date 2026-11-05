@@ -1,77 +1,66 @@
 # Architecture
 
-## Overview
+The product is a single embeddable feature: the **canvas** in
+`src/designer/`. Everything the former application shell did (navigation,
+admin, observability, protocol consoles) is out of scope and lives in
+`omnichannel-agent-platform`.
 
-Agentic CX Designer is a visual voice agent builder with a microservices architecture.
-
-## Components
-
-### Frontend (React + React Flow)
-
-- **Canvas** — Node-based flow editor
-- **Palette** — Draggable node types
-- **Config Panel** — Node configuration
-- **Test Console** — Real-time testing
-- **Analytics Overlay** — Performance metrics
-- **AI Generator** — Plain English to flow
-- **Plugin Marketplace** — Community plugins
-- **Template Gallery** — Pre-built flows
-- **Version Control** — Diff and rollback
-- **Collaboration** — Multi-user editing
-- **Monitoring** — Production metrics
-
-### Backend (FastAPI)
-
-- **Flow API** — CRUD operations
-- **Build API** — Immutable builds
-- **Deployment API** — Deploy and rollback
-- **Eval API** — Test suites
-- **WebSocket** — Real-time testing
-- **Auth** — JWT-based authentication
-
-### Execution Engine
-
-- **DAG Executor** — Flow execution
-- **Voice Pipeline** — STT/LLM/TTS
-- **Framework Adapters** — LangGraph, Strands, ADK
-- **Guardrails** — PII, compliance, safety
-- **Gateway** — MCP, HTTP
-
-### Infrastructure
-
-- **PostgreSQL** — Flow definitions, audit logs
-- **Redis** — Session state, caching
-- **S3** — Flow exports, recordings
-- **Kubernetes** — Container orchestration
-- **Prometheus** — Metrics
-- **Grafana** — Dashboards
-
-## Data Flow
+## Module map
 
 ```
-User → Canvas → Flow JSON → Backend → PostgreSQL
-                     ↓
-              Execution Engine
-                     ↓
-         Voice Pipeline (STT/LLM/TTS)
-                     ↓
-              Response → User
+src/designer/
+├── CanvasDesigner.tsx     Public component: canvas + palette + config panel + drawers
+├── index.ts               Public API (component, types, registry, engine, storage)
+├── canvas/
+│   ├── domain.ts          Normalization funnel — the only type-resolution path
+│   ├── patterns.ts        Composite "Agent Pattern" expansion (pure, idempotent)
+│   ├── CxNode.tsx         Custom node card: typed ports, zoom bands, status rings
+│   ├── status.ts / summary.ts / canvas.css
+├── nodes/                 Node registry + 27 node definitions + custom-node SDK
+├── adapters/              LangGraph · Strands · ADK framework nodes
+├── engine/flowEngine.ts   Client-side DAG executor (voice-aware loop)
+├── engine/metrics.ts      Local metrics recorder (Observability plug point)
+├── components/            ConfigForm, FlowIO, Validation, Preflight, Script,
+│                          Versions, BuilderChat, Analytics, UI primitives
+├── builder/ + ai/         Plain-English → builder ops → FlowGenerator
+├── validation/            FlowValidator (graph + config checks)
+├── history/ + autosave/   Undo/redo (coalescing) + local-first persistence
+├── versioning/            In-memory version snapshots + visual diffs
+├── sentinel/              Rule engine + PII/PHI redaction used by node executors
+├── channels/types.ts      Channel model (authoring stays channel-agnostic)
+└── mock/ + mcp/           Local simulator & MCP tool catalogue
 ```
 
-## Security
+## Data flow
 
-- JWT authentication
-- Role-based access control
-- Input validation (Pydantic)
-- SQL injection prevention (SQLAlchemy)
-- CORS configuration
-- Rate limiting
-- PII redaction
+```
+Palette drag / click
+        │
+        ▼
+React Flow nodes ──► normalizeFlow() ──► FlowGraph (canonical)
+        │                                 │
+        │                                 ├─► onChange (host, debounced)
+        │                                 ├─► historyManager (undo/redo)
+        │                                 ├─► autoSave (IndexedDB + cache)
+        │                                 └─► FlowEngine.execute()
+        │                                          │
+        ▼                                          ▼
+CxNode cards + status rings ◄── trace callbacks (pulse / stats)
+```
 
-## Scalability
+Key invariant: every ingress (`initialFlow`, `flow` prop, `importFlow`, JSON
+import, version restore, undo/redo, autosave recovery) passes through
+`canvas/domain.ts`, so the canvas never holds an unresolvable node type. Node
+types are always read through `domainTypeOf()`, never from `data.type`
+directly (enforced by a structural test).
 
-- Horizontal pod autoscaling
-- Database read replicas
-- Redis cluster mode
-- CDN for static assets
-- Multi-region deployment
+Composition: patterns/custom nodes are authored as composite blocks and
+flattened by `expandPatterns()` before execution/export, so the runtime graph
+is always a plain DAG.
+
+## Host boundary
+
+`CanvasDesigner` takes the document (`initialFlow`/`flow`), emits canonical
+changes (`onChange`), and accepts host plug points (`customNodes`,
+`mcpSystems`, `features`, `persistence`). See
+[docs/EMBEDDING.md](docs/EMBEDDING.md).

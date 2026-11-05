@@ -4,7 +4,7 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| 0.2.x   | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
@@ -13,6 +13,18 @@ Please report security vulnerabilities to security@yourdomain.com.
 We aim to respond to security reports within 48 hours.
 
 ## Security Measures
+
+- Local-first by default: no canvas data leaves the browser unless the host
+  wires server-side persistence.
+- See `docs/API.md` for the optional backend's auth model.
+
+## Known dev-only advisories
+
+`npm audit` reports moderate advisories in the **development toolchain**
+(vite/vitest/esbuild: dev-server request handling and test-mock path
+traversal). They do not affect the production bundle (`dist/`) and are fixed
+only by major toolchain upgrades; they will be addressed with the next Vite
+major. Production dependencies audit clean (`npm audit --omit=dev` → 0).
 
 ### Authentication
 - JWT-based authentication with configurable expiration

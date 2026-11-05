@@ -1,5 +1,9 @@
 # CX Designer — Multimodal System Design
 
+> **Status: historical design document.** It describes the broad platform
+> vision that now lives in `omnichannel-agent-platform`. The shipped feature
+> is the canvas only; see [docs/EMBEDDING.md](docs/EMBEDDING.md).
+
 ## Vision
 
 One canvas builds **voice agents, chat agents, webchats, self-help

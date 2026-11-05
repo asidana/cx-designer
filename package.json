@@ -1,23 +1,46 @@
 {
   "name": "agentic-cx-designer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Agentic CX Designer — a self-contained, embeddable drag-and-drop agent flow canvas (node palette, config forms, simulation, validation)",
   "type": "module",
   "main": "src/designer/index.ts",
+  "types": "src/designer/index.ts",
   "exports": {
     ".": "./src/designer/index.ts"
   },
+  "license": "MIT",
+  "keywords": [
+    "agent",
+    "canvas",
+    "flow-builder",
+    "react-flow",
+    "n8n",
+    "voice-agent",
+    "cx"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "src/designer",
+    "docs/EMBEDDING.md",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
     "reactflow": "^11.11.4"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.2",
@@ -31,6 +54,8 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.2",
     "jsdom": "^29.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
     "vitest": "^2.1.2"

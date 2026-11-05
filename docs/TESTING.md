@@ -5,49 +5,29 @@
 | File | Scope |
 |------|-------|
 | `tests/flowEngine.test.ts` | Flow engine unit tests (execution, validation, error handling) |
-| `tests/guardrail.test.ts` | Guardrail SDK unit tests (PII, toxicity, injection, validation) |
-| `tests/integration.test.ts` | Template loading, framework adapters, guardrail integration |
-| `tests/e2e.test.ts` | End-to-end user workflows + performance budgets |
+| `tests/normalize.test.ts` | Normalization funnel: migration, all creation paths, no type bypass |
+| `tests/patterns.test.ts` | Composite pattern expansion (authoring → flat runtime graph) |
+| `tests/canvasNode.test.tsx` | Node card rendering, zoom bands, status rings, tokens |
+| `tests/builder.test.ts` | Plain-English builder interpreter ops |
+| `tests/customNodes.test.ts` | Custom node authoring contract + registry sync |
+| `tests/designerSmoke.test.tsx` | `<CanvasDesigner />` boots, emits changes, imperative handle |
 
-## Frontend Tests
-
-```bash
-npm test -- --run        # all tests, single run
-npm test -- --run tests/flowEngine.test.ts   # one file
-```
-
-Tests use `vitest`. Backend services are mocked — no database or API keys needed.
-
-## Backend Tests
+## Running
 
 ```bash
-cd server
-pip install -r requirements.txt
-pip install pytest pytest-asyncio
-pytest tests/ -v
+npm test                  # all tests, single run (CI mode)
+npm run test:watch        # watch mode while developing
+npx vitest run tests/flowEngine.test.ts   # one file
 ```
 
-Backend tests need PostgreSQL and Redis. With Docker:
-
-```bash
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15
-docker run -d -p 6379:6379 redis:7
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/agentic_cx_test \
-REDIS_URL=redis://localhost:6379 pytest tests/ -v
-```
+Tests use `vitest` with jsdom where the DOM is needed. Everything runs against
+local mocks — no database, backend or API keys required.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push/PR: typecheck + lint + frontend tests, backend tests (with Postgres/Redis services), Docker build, then staged deploy on `main`.
+`.github/workflows/ci.yml` runs typecheck → lint → tests → production build,
+then (on `main`) verifies the Docker image builds. Registry push/deploy is
+host-specific and intentionally not wired.
 
-## Performance Budgets (from `tests/e2e.test.ts`)
-
-- Single flow execution completes in < 5s (mock execution).
-- 10 concurrent executions complete without errors.
-- Production voice target (real providers): end-of-speech → first-audio p95 < 1s.
-
-## Adding Tests
-
-- New node → unit test for `execute` + `validate` (success, failure, edge cases).
-- New API endpoint → backend test for 200 + 404 paths.
-- New user workflow → case in `tests/e2e.test.ts`.
+The optional FastAPI backend in `server/` has no committed test suite; it is
+not exercised by CI.

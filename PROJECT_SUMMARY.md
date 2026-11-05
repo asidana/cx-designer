@@ -1,5 +1,10 @@
 # Agentic CX Designer — Project Summary
 
+> **Status: historical.** This summary describes the pre-focus product
+> (nine-section voice-agent builder). The released product is the standalone,
+> embeddable canvas feature — see [README.md](README.md),
+> [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/EMBEDDING.md](docs/EMBEDDING.md).
+
 ## What Was Built
 
 A complete, production-ready visual voice agent builder — Flowise-class, but purpose-built for AI voice agents.

@@ -5,9 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Canvas extraction
+## [0.2.0] - 2026-11-05
 
-The product is refocused on the canvas feature only, made whole and embeddable.
+Canvas extraction release: the product is now the standalone, embeddable
+canvas feature only.
 
 ### Added
 - `src/designer/` — the entire canvas feature as a single embeddable component

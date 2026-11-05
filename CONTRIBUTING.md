@@ -7,11 +7,15 @@ Thank you for your interest in contributing!
 1. Fork and clone the repository
 2. Install dependencies:
    ```bash
-   make install
+   npm ci
    ```
-3. Start development servers:
+3. Start the dev server:
    ```bash
-   make dev
+   npm run dev
+   ```
+4. Run the checks before opening a PR:
+   ```bash
+   npx tsc --noEmit && npm run lint && npm test && npm run build
    ```
 
 ## Pull Request Process
