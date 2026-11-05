@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { FlowEngine } from '../src/engine/flowEngine';
-import { FlowGraph, FlowNode, FlowEdge } from '../src/types/node';
+import { FlowEngine } from '../src/designer/engine/flowEngine';
+import { FlowGraph, FlowNode, FlowEdge } from '../src/designer/types/node';
 
 describe('FlowEngine', () => {
   let engine: FlowEngine;

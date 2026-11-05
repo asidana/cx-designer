@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Canvas extraction
+
+The product is refocused on the canvas feature only, made whole and embeddable.
+
+### Added
+- `src/designer/` — the entire canvas feature as a single embeddable component
+  (`<CanvasDesigner />`), with a public API (`index.ts`) and imperative handle.
+- Ported the next-generation canvas from omnichannel-agent-platform: custom
+  `cx` node cards (typed ports, 3 zoom bands, status rings), normalization
+  funnel, pattern composition, design tokens.
+- Feature drawers: Preflight, Script, Validation, Flow I/O, Versions (visual
+  diff), Builder chat, Analytics.
+- Local metrics recorder (`engine/metrics.ts`) replacing the platform's
+  Observability dependency; local mock tool simulator (`mock/seed.ts`).
+- Embedding contract documented in docs/EMBEDDING.md.
+
+### Changed
+- All flow state extracted from the app-shell monolith into
+  `CanvasDesigner.tsx` (palette, config panel, history, autosave, dirty
+  tracking, run pipeline).
+- Autosave keys renamed to `agentic_cx_designer_*`; platform workspace/RBAC/
+  plugins/protocol/consoles Removed from the feature.
+
+### Removed
+- Nine-section shell, navigation, pages, test console, protocol console,
+  workspace store, plugin marketplace, collaboration scaffolding.
+- Unused dependencies: axios, uuid, zod, zustand.
+
 ## [0.1.0] - 2026-10-06
 
 ### Added

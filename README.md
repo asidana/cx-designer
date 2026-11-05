@@ -1,24 +1,42 @@
 # Agentic CX Designer
 
-A visual voice agent builder — Flowise-class, but purpose-built for AI voice agents.
+A self-contained, **embeddable drag-and-drop agent flow canvas** — the builder feature from the omnichannel agent platform, extracted to stand alone (and drop back into a larger product later).
 
 ![Agentic CX Designer](https://img.shields.io/badge/version-0.1.0-blue)
 
+## What this is (post-restructure)
+
+One React component — **[`<CanvasDesigner />`](src/designer)** — is the entire product:
+
+- **n8n / AWS Connect-style canvas** — drag nodes from a searchable palette, wire typed ports, configure in schema-driven panel
+- **27 node types** — voice, chat, agentic (LangGraph / Strands / ADK), deterministic, control, governance, integration, gateway (MCP)
+- **Run & test in place** — client-side flow engine simulation with live trace pulses
+- **Preflight · Script · Validation · Flow I/O · Versions · Builder chat · Analytics** as toggle-in drawers
+- **Undo/redo, autosave, local-first storage** — works offline
+
+It is deliberately *focused*: no admin/observability/platform sections. That work stays in
+`omnichannel-agent-platform`, which this canvas will be embedded into
+(see [docs/EMBEDDING.md](docs/EMBEDDING.md) for the contract).
+
 ## Features
 
-- **Nine-section shell** — CX Designer, Guardrails, Voice Gateway, Observability, Insights, Settings, Admin, Super Admin, Help — each with its own pages ([docs/NAVIGATION.md](docs/NAVIGATION.md))
-- **Command palette** — `Ctrl+K` reaches every page, canvas action and node type
-- **Visual Canvas** — Drag-and-drop node-based flow builder (React Flow)
+- **Visual Canvas** — drag-and-drop node-based flow builder (React Flow + custom `cx` node cards)
 - **Voice-Native** — STT, TTS, VAD, barge-in as first-class nodes
 - **Agentic Reasoning** — ReAct pattern with hard ceilings (cost, iterations, loop detection)
 - **Deterministic + Agentic Blending** — Policy enforced by infrastructure, not model behavior
-- **Real-Time Testing** — Talk to your agent while building it
-- **Framework Agnostic** — LangGraph, Strands, ADK, LangChain, AutoGen, CrewAI
-- **Built-In Evals** — 3-layer evaluation (model, component, outcome)
-- **Guardrails SDK** — Custom guardrail apps as nodes or sidecars
-- **MCP Gateway** — Expose flows as MCP tools
-- **AI-Assisted Building** — Generate flows from plain English
-- **Self-Hosted** — Docker + Kubernetes ready
+- **Framework Agnostic** — LangGraph, Strands, ADK adapters as nodes
+- **Pattern composition** — author with composite "Agent Pattern" blocks that expand to a subgraph
+- **AI-Assisted Building** — generate flows from plain English (Builder chat drawer)
+- **MCP** — tool catalog nodes; expose flows via MCP gateway
+
+## Layout
+
+```
+src/designer/      ← THE feature (embeddable component + engine + nodes)
+src/App.tsx        ← thin standalone demo host
+tests/             ← engine, normalization, node card, patterns, builder, custom nodes, smoke tests
+server/            ← optional FastAPI persistence backend (not required by the canvas)
+```
 
 ## Quick Start
 

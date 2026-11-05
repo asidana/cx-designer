@@ -7,8 +7,8 @@
 
 import { describe, it, expect } from 'vitest';
 import type { Node, Edge } from 'reactflow';
-import { interpret } from '../src/builder/interpreter';
-import '../src/nodes/index';
+import { interpret } from '../src/designer/builder/interpreter';
+import '../src/designer/nodes/index';
 
 function node(id: string, type: string, label: string): Node {
   return {

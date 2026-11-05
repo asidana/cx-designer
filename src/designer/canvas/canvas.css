@@ -1,0 +1,326 @@
+/**
+ * Canvas chrome + node card.
+ *
+ * Every colour here is a `--cx-*` token, never a literal, so the canvas is
+ * correct in light and dark without any per-component theme branching. The
+ * tokens are projected onto <html> by src/design/tokens.ts.
+ */
+
+/* ── Chrome: surface ─────────────────────────────────────────────────── */
+
+.react-flow {
+  background: var(--cx-bg);
+}
+
+.react-flow__background {
+  color: var(--cx-border);
+}
+
+.react-flow__controls {
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-radius);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.react-flow__controls-button {
+  background: var(--cx-panel2);
+  border-bottom: 1px solid var(--cx-border);
+  color: var(--cx-text);
+}
+
+.react-flow__controls-button:hover {
+  background: var(--cx-panel);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.react-flow__minimap {
+  background: var(--cx-panel);
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-radius);
+}
+
+.react-flow__minimap-mask {
+  fill: var(--cx-overlay);
+}
+
+.react-flow__attribution {
+  background: transparent;
+}
+
+.react-flow__attribution a {
+  color: var(--cx-subtle);
+}
+
+/* ── Edges & handles ─────────────────────────────────────────────────── */
+
+.react-flow__edge-path {
+  stroke: var(--cx-border-strong);
+  stroke-width: 1.5;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke: var(--cx-accent);
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path {
+  stroke: var(--cx-accent);
+  stroke-width: 2;
+}
+
+.react-flow__connection-path {
+  stroke: var(--cx-accent);
+  stroke-width: 2;
+}
+
+.react-flow__handle.cx-port {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--cx-panel);
+  border-radius: 50%;
+  /* background is set per port type inline (token reference). */
+}
+
+.react-flow__handle.cx-port:hover {
+  transform: scale(1.25);
+}
+
+.react-flow__handle-connecting {
+  background: var(--cx-accent) !important;
+}
+
+.react-flow__handle-valid {
+  background: var(--cx-success) !important;
+}
+
+/* ── The node card ───────────────────────────────────────────────────── */
+
+.cx-node {
+  position: relative;
+  min-width: 168px;
+  max-width: 240px;
+  background: var(--cx-panel);
+  border: 1.5px solid var(--cx-border-strong);
+  border-radius: calc(var(--cx-radius) + 2px);
+  color: var(--cx-text);
+  font-size: var(--cx-font-small);
+  line-height: var(--cx-line-height);
+  padding: 8px 10px 8px 12px;
+  box-shadow: 0 2px 8px var(--cx-shadow);
+  transition: border-color var(--cx-motion-fast) var(--cx-motion-easing),
+    box-shadow var(--cx-motion-fast) var(--cx-motion-easing);
+}
+
+/* Category stripe — a second, non-colour-only cue for node kind (the first
+   is the card's category chip). */
+.cx-node__stripe {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--cx-node-accent, var(--cx-muted));
+}
+
+.cx-node__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cx-node__icon {
+  flex: none;
+  font-size: 14px;
+}
+
+.cx-node__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-node__cat {
+  flex: none;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cx-muted);
+  border: 1px solid var(--cx-border);
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+.cx-ports {
+  position: relative;
+  margin: 6px 0 2px;
+}
+
+.cx-port-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-height: 14px;
+}
+
+.cx-ports--input .cx-port-row {
+  justify-content: flex-start;
+}
+
+.cx-ports--output .cx-port-row {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+.cx-port-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.cx-port-label {
+  color: var(--cx-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.cx-port-type {
+  color: var(--cx-subtle);
+  font-size: 9px;
+}
+
+.cx-port-req {
+  color: var(--cx-warn);
+  font-size: 10px;
+}
+
+.cx-node__footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--cx-border);
+  min-width: 0;
+}
+
+.cx-node__summary {
+  flex: 1;
+  min-width: 0;
+  color: var(--cx-muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-node__status {
+  flex: none;
+  font-size: 10px;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--cx-border);
+}
+
+.cx-node__status--success {
+  color: var(--cx-success);
+  border-color: var(--cx-success);
+}
+.cx-node__status--error {
+  color: var(--cx-danger);
+  border-color: var(--cx-danger);
+}
+.cx-node__status--warning {
+  color: var(--cx-warn);
+  border-color: var(--cx-warn);
+}
+.cx-node__status--running {
+  color: var(--cx-focus);
+  border-color: var(--cx-focus);
+}
+.cx-node__status--diff-added {
+  color: var(--cx-success);
+  border-color: var(--cx-success);
+}
+.cx-node__status--diff-modified {
+  color: var(--cx-warn);
+  border-color: var(--cx-warn);
+}
+
+/* ── Status ring (also the focus affordance) ─────────────────────────── */
+
+.cx-node[data-status='selected'] {
+  border-color: var(--cx-accent);
+  box-shadow: 0 0 0 2px var(--cx-accent);
+}
+.cx-node[data-status='running'] {
+  border-color: var(--cx-focus);
+  box-shadow: 0 0 0 2px var(--cx-focus);
+}
+.cx-node[data-status='success'] {
+  border-color: var(--cx-success);
+}
+.cx-node[data-status='error'] {
+  border-color: var(--cx-danger);
+  box-shadow: 0 0 0 2px var(--cx-danger);
+}
+.cx-node[data-status='warning'] {
+  border-color: var(--cx-warn);
+}
+.cx-node[data-status='diff-added'] {
+  border-color: var(--cx-success);
+  box-shadow: 0 0 0 2px var(--cx-success);
+}
+.cx-node[data-status='diff-modified'] {
+  border-color: var(--cx-warn);
+  box-shadow: 0 0 0 2px var(--cx-warn);
+}
+
+/* ── Progressive disclosure ──────────────────────────────────────────── */
+
+.cx-node[data-band='far'] {
+  min-width: 0;
+  padding: 6px 8px 6px 10px;
+}
+
+.cx-node[data-band='far'] .cx-node__summary,
+.cx-node[data-band='far'] .cx-port-label,
+.cx-node[data-band='far'] .cx-port-type {
+  display: none;
+}
+
+/* ── Category, as border style (never colour alone) ──────────────────── */
+
+.cx-node[data-category='agentic'] {
+  border-style: dashed;
+}
+.cx-node[data-category='governance'] {
+  border-style: dotted;
+}
+.cx-node[data-category='voice'],
+.cx-node[data-category='chat'] {
+  border-style: double;
+  border-width: 3px;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-node,
+  .react-flow__handle.cx-port {
+    transition: none;
+  }
+}
