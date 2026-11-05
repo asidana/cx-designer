@@ -16,7 +16,7 @@ src/designer/
 │   ├── patterns.ts        Composite "Agent Pattern" expansion (pure, idempotent)
 │   ├── CxNode.tsx         Custom node card: typed ports, zoom bands, status rings
 │   ├── status.ts / summary.ts / canvas.css
-├── nodes/                 Node registry + 27 node definitions + custom-node SDK
+├── nodes/                 Node registry + 32 node definitions + custom-node SDK
 ├── adapters/              LangGraph · Strands · ADK framework nodes
 ├── engine/flowEngine.ts   Client-side DAG executor (voice-aware loop)
 ├── engine/metrics.ts      Local metrics recorder (Observability plug point)

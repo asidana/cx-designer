@@ -34,8 +34,8 @@ export function AgentEditor() {
 
 The component ships its own:
 - **Node palette** (searchable, grouped by category; drag to canvas or click to place)
-- **27 node types** across voice · chat · agentic · deterministic · control ·
-  governance · integration · gateway
+- **32 node types** (29 built-in + 3 framework adapters) across voice · chat ·
+  agentic · deterministic · control · governance · integration · gateway
 - **Custom `cx` node cards** — typed input/output ports, three zoom levels,
   status rings (validation / trace / diff)
 - **Config panel** — schema-driven forms generated from each node's

@@ -9,7 +9,7 @@ A self-contained, **embeddable drag-and-drop agent flow canvas** — the builder
 One React component — **[`<CanvasDesigner />`](src/designer)** — is the entire product:
 
 - **n8n / AWS Connect-style canvas** — drag nodes from a searchable palette, wire typed ports, configure in schema-driven panel
-- **27 node types** — voice, chat, agentic (LangGraph / Strands / ADK), deterministic, control, governance, integration, gateway (MCP)
+- **32 node types** (29 built-in + 3 framework adapters) — voice, chat, agentic (LangGraph / Strands / ADK), deterministic, control, governance, integration, gateway (MCP)
 - **Run & test in place** — client-side flow engine simulation with live trace pulses
 - **Preflight · Script · Validation · Flow I/O · Versions · Builder chat · Analytics** as toggle-in drawers
 - **Undo/redo, autosave, local-first storage** — works offline
@@ -17,6 +17,11 @@ One React component — **[`<CanvasDesigner />`](src/designer)** — is the enti
 It is deliberately *focused*: no admin/observability/platform sections. That work stays in
 `omnichannel-agent-platform`, which this canvas will be embedded into
 (see [docs/EMBEDDING.md](docs/EMBEDDING.md) for the contract).
+
+It is also **not** a Langflow/Flowise replacement — those are full platforms,
+this is an embeddable component. [docs/COMPARISON.md](docs/COMPARISON.md)
+explains the difference, including Flowise's 2026 archival and when to choose
+each.
 
 ## Features
 
@@ -52,7 +57,7 @@ No database or backend required — the canvas runs entirely in the browser
 in `server/` (Python, Docker) is kept for later platform integration and is
 not needed by the canvas.
 
-## Node Types (27 registered)
+## Node Types (32 registered: 29 built-in + 3 framework adapters)
 
 | Category | Nodes |
 |----------|-------|
@@ -147,6 +152,7 @@ Full reference for the optional backend: [docs/API.md](docs/API.md).
 | Doc | Contents |
 |-----|----------|
 | [docs/EMBEDDING.md](docs/EMBEDDING.md) | **Start here** — the embedding contract for the `<CanvasDesigner />` component |
+| [docs/COMPARISON.md](docs/COMPARISON.md) | How the canvas compares to Langflow and Flowise — and when to use each |
 | [docs/NODES.md](docs/NODES.md) | Node catalog — built-in node types by category |
 | [docs/API.md](docs/API.md) | Optional FastAPI backend reference |
 | [docs/TESTING.md](docs/TESTING.md) | Testing guide |

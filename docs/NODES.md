@@ -1,6 +1,6 @@
 # Node Catalog
 
-All built-in node types, grouped by palette category. Node definitions live in `src/designer/nodes/`, registered in `src/designer/nodes/index.ts`.
+All 32 node types, grouped by palette category: 29 built-in definitions plus 3 framework adapters. Node definitions live in `src/designer/nodes/`, registered in `src/designer/nodes/index.ts`.
 
 ## Voice
 
@@ -15,6 +15,7 @@ All built-in node types, grouped by palette category. Node definitions live in `
 |------|-------|------------------|---------|
 | `chat.input` | Chat Input | — → `text`, `quickReplies` | Chat message entry with configurable quick replies |
 | `chat.output` | Chat Output | `text` → `message` | Markdown reply with citations, rich cards, and quick replies |
+| `chat.page_assistant` | Page Assistant | `input` → `answer`, `actions` | Answer and act on the current web page (URL, title, selection); mutating actions require approval |
 
 ## Agentic
 
@@ -25,8 +26,11 @@ All built-in node types, grouped by palette category. Node definitions live in `
 | `agentic.rag` | Knowledge Retrieval | `input` → `context`, `sources` | Vector retrieval over a knowledge base with top-K, score threshold, embedding model, optional reranker |
 | `agentic.webcrawler` | Website Sync | `input` → `documents`, `chunks`, `knowledgeBase` | Sync website content into a knowledge base (Firecrawl / Jina Reader / sitemap; sub-pages, limits, include/exclude paths) |
 | `agentic.memory` | Memory | `input` → `history`, `summary` | Short/long-term conversation memory with max-history trim and summarization, Redis/Postgres backing |
+| `agentic.copilot_action` | Copilot Action | `text` → `uiParts` | Emit AG-UI / A2UI cards, forms, lists, or information with optional approval |
+| `agentic.selfhelp_answer` | Self-Help Answer | `query` → `article`, `text` | Resolve a turn against the knowledge base and emit an article card plus a plain-text fallback |
+| `agentic.agent_skill` | A2A Skill | `text` → `agentCard` | Advertise this flow as a delegatable Agent2Agent skill |
 
-Framework adapters (`agentic.langgraph`, `agentic.strands`, `agentic.adk`) are registered from `src/adapters/`. Per the architecture (§17.5), prefer the native runtime; use the generic `external.agent` pattern for third-party frameworks.
+Framework adapters (`agentic.langgraph`, `agentic.strands`, `agentic.adk`) are registered from `src/designer/adapters/`. Prefer the native runtime for each framework; use the generic `external.agent` pattern for third-party frameworks without an adapter.
 
 ## Deterministic
 
@@ -42,6 +46,7 @@ Framework adapters (`agentic.langgraph`, `agentic.strands`, `agentic.adk`) are r
 |------|-------|------------------|---------|
 | `control.conditional_router` | Conditional Router | `input` → `route` | Priority-ordered condition routing with a default route |
 | `control.subflow` | Sub-flow | `input` → `output` | Execute a nested flow with timeout |
+| `control.pattern` | Agent Pattern | `input` → `output` | Composite block (goal, tools, guardrails, fallbacks) that expands to a subgraph before execution |
 | `control.parallel` | Parallel | `input` → `output` | Concurrent branches with `all` / `first` / `vote` merge strategies and timeout |
 | `control.wait` | Wait | `input` → `output` | Pause on duration, event, or condition with timeout |
 
@@ -52,8 +57,7 @@ Framework adapters (`agentic.langgraph`, `agentic.strands`, `agentic.adk`) are r
 | `governance.guardrail` | Guardrail | `input` → `allowed`, `redacted`, `violations` | Built-in PII redaction + toxicity filter, or a custom guardrail app (`block` \| `warn` \| `redact` \| `escalate`) |
 | `governance.sentinel` | Agent Firewall | `input` → `allowed`, `action`, `content`, `violations` | Full firewall at a phase (`pre_llm`/`post_llm`/`pre_tool`/`post_tool`): rate limit → rule engine → PII/PHI redaction → injection scan |
 
-See `src/guardrails/GuardrailSDK.ts` for the custom guardrail app contract.
-See `docs/AGENT_FIREWALL.md` for the firewall, rule engine, and phase model. (`src/sentinel/` paths predate the rename.)
+See `docs/AGENT_FIREWALL.md` for the firewall, rule engine, and phase model; implementation lives in `src/designer/sentinel/` and `src/designer/nodes/governance/`.
 
 ## Integration
 
@@ -64,6 +68,12 @@ See `docs/AGENT_FIREWALL.md` for the firewall, rule engine, and phase model. (`s
 | `integration.streamlink` | Voice Gateway | `input` → `callId`, `status` | Expose the agent over SIP/WebSocket/gRPC to CCaaS (Genesys/Five9/Avaya/Connect); SIP trunking, RFC2833 DTMF, warm/blind transfer, PCI recording pause |
 | `integration.webhook` | Webhook | `input` → `response` | Incoming or outgoing webhooks with secret verification |
 | `integration.database` | Database | `input` → `result` | PostgreSQL/DynamoDB/Redis/MySQL query/insert/update/delete |
+
+## Gateway
+
+| Type | Label | Inputs → Outputs | Purpose |
+|------|-------|------------------|---------|
+| `gateway.mcp_tool` | MCP Tool | `args` → `toolResult`, `declaration` | Declare and call a catalogue tool (MCP + ACP interop); resolves against the local mock today |
 
 ## Adding a Node
 
